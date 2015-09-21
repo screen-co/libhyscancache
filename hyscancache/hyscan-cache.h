@@ -1,0 +1,113 @@
+/*!
+ * \file hyscan-cache.h
+ *
+ * \brief Заголовочный файл интерфейса системы кэширования HyScan
+ * \author Andrei Fadeev (andrei@webcontrol.ru)
+ * \date 2015
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ * \defgroup HyScanCache HyScanCache - интерфейс системы кэширования
+ *
+ * Интерфейс HyScanCache предназначен для взаимодействия с системой кэширования данных.
+ * Кэширование данных, полученных в результате длительной обработки, может значительно
+ * увеличить производительность программы и исключить повторное выполнение работы.
+ *
+ * Система кэширования идентифицирует сохраняемые данные по уникальному ключу. Для каждого
+ * сохраняемого объекта (данных) может быть указана вспомогательная информация, по которой можно
+ * определить параметры обработки данных и принять решение о возможности их использования.
+ *
+ * Ключ объекта и вспомогательная информация указываются в виде строк, но в системе кэширования
+ * храняться в виде 64-х битного хэша (FarmHash). Например, при хранении в кэше строк
+ * акустичеких данных, обработанных с учетом коррекции яркости, можно использовать следующие
+ * ключ и вспомогательную информацию:
+ *
+ * - ключ - "Project.Track.Channel.Line.Index";
+ * - вспомогательная информация - "Brightness=1.25,Contrast=0.8",
+ *
+ * где Project, Track, Channel - названия проекта, галса и канала данных, Index - номер строки
+ * зондирования, числа после Brightness и Contrast - параметры алгоритма коррекции яркости.
+ *
+ * Размещение данных в кэше осуществляется функцией #hyscan_cache_set, чтение данных функцией
+ * #hyscan_cache_get.
+ *
+*/
+
+#ifndef _hyscan_cache_h
+#define _hyscan_cache_h
+
+#include <glib-object.h>
+
+G_BEGIN_DECLS
+
+
+#define HYSCAN_TYPE_CACHE                      ( hyscan_cache_get_type() )
+#define HYSCAN_CACHE( obj )                    ( G_TYPE_CHECK_INSTANCE_CAST( ( obj ), HYSCAN_TYPE_CACHE, HyScanCache ) )
+#define HYSCAN_IS_CACHE( obj )                 ( G_TYPE_CHECK_INSTANCE_TYPE( ( obj ), HYSCAN_TYPE_CACHE ) )
+#define HYSCAN_CACHE_GET_IFACE( obj )          ( G_TYPE_INSTANCE_GET_INTERFACE( ( obj ), HYSCAN_TYPE_CACHE, HyScanCacheInterface ) )
+
+
+typedef struct HyScanCache HyScanCache;
+
+typedef struct HyScanCacheInterface {
+
+  GTypeInterface parent;
+
+  gboolean (*set)( HyScanCache *cache, guint64 key, guint64 detail, gpointer data, guint32 size );
+
+  gboolean (*get)( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer, guint32 *buffer_size );
+
+} HyScanCacheInterface;
+
+
+GType hyscan_cache_get_type( void );
+
+
+/*!
+ *
+ * Функция помещает данные в кэш.
+ *
+ * Если переменная detail = NULL, вспомогательная информация не будет учитываться для этого объекта.
+ *
+ * \param cache указатель на интерфейс \link HyScanCache \endlink;
+ * \param key ключ объекта;
+ * \param detail вспомогательная информация или NULL;
+ * \param data указатель на сохраняемые данные;
+ * \param size размер сохраняемых данных.
+ *
+ * \return TRUE - если данные успешно сохранены в кэше, FALSE - в случае ошибки.
+ *
+*/
+gboolean hyscan_cache_set( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data, guint32 size );
+
+
+/*!
+ *
+ * Функция считывает данные из кэша.
+ *
+ * Если переменная detail = NULL, вспомогательная информация не будет учитываться для этого объекта.
+ *
+ * Перед вызовом функции в переменную buffer_size должен быть записан размер буфера.
+ * После успешного чтения данных в переменную buffer_size будет записан действительный размер считанных данных.
+ * Размер считанных данных может быть ограничен размером буфера. Для того чтобы определить размер данных без
+ * их чтения необходимо вызвать функцию с переменной buffer = NULL.
+ *
+ * Однако нельзя полностью полагаться только на этот размер, так как между операциями определения размера данных
+ * в кэше и их чтением, данные и их размер могут измениться. В этом случае рекомендуется выделить буфер для данных
+ * с небольшим запасом. Если размер считанных данных станет равным размеру буфера, это является сигналом о возможном
+ * не полном чтении данных из кэша.
+ *
+ * \param cache указатель на интерфейс \link HyScanCache \endlink;
+ * \param key ключ объекта;
+ * \param detail вспомогательная информация или NULL;
+ * \param buffer указатель на буфер для записи данных или NULL;
+ * \param size размер буфера для данных / размер данных.
+ *
+ * \return TRUE - если данные найдены в кэше, FALSE - в случае ошибки.
+ *
+*/
+gboolean hyscan_cache_get( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer, guint32 *buffer_size );
+
+
+G_END_DECLS
+
+#endif // _hyscan_cache_h
