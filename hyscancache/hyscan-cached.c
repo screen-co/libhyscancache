@@ -23,6 +23,9 @@
   #define MAX_CACHE_SIZE 131072
 #endif
 
+#define SMALL_OBJECT_SIZE    sizeof( gint64 )    // Размер объекта для которого значения
+                                                 // сохраняются в метаданных объекта.
+
 
 enum { PROP_O, PROP_CACHE_SIZE };
 
@@ -34,7 +37,11 @@ struct ObjectInfo {                              // Информация об о
   guint64                    detail;             // Хэш дополнительной информации объекта.
   guint32                    size;               // Размер объекта.
   guint32                    allocated;          // Размер выделенной для объекта области памяти.
-  gpointer                  *data;               // Указатель на данные объекта.
+
+  union {
+    gpointer                *data;               // Указатель на данные объекта.
+    gint64                   value;              // Значение данных для объектов размером до 8 байт.
+  };
 
   ObjectInfo                *prev;               // Указатель на предыдущий объект.
   ObjectInfo                *next;               // Указатель на следующий объект.
@@ -187,7 +194,7 @@ static void hyscan_cached_free_object( gpointer data )
 
   ObjectInfo *object = data;
 
-  free( object->data );
+  if( object->allocated ) g_free( object->data );
   g_slice_free( ObjectInfo, object );
 
 }
@@ -252,22 +259,26 @@ static ObjectInfo *hyscan_cached_rise_object( HyScanCachedPriv *priv, guint64 ke
   // Хеш идентификатора объекта и дополнительной информации.
   object->hash =  key;
   object->detail =  detail;
-
-  // Данные объекта.
   object->size = size;
-  object->allocated = size;
-  object->data = malloc( size );
-  if( object->data )
+
+  // Данные объекта большого размера.
+  if( size > SMALL_OBJECT_SIZE )
     {
-    memcpy( object->data, data, size );
+    object->data = g_malloc( size );
+    object->allocated = size;
     priv->used_size += size;
-    priv->n_objects += 1;
+    memcpy( object->data, data, size );
     }
+
+  // Данные объекта малого размера.
   else
     {
-    g_trash_stack_push( &priv->free_objects, object );
-    object = NULL;
+    object->allocated = 0;
+    object->value = 0;
+    memcpy( &object->value, data, size );
     }
+
+  priv->n_objects += 1;
 
   return object;
 
@@ -278,15 +289,22 @@ static ObjectInfo *hyscan_cached_rise_object( HyScanCachedPriv *priv, guint64 ke
 static ObjectInfo *hyscan_cached_update_object( HyScanCachedPriv *priv, ObjectInfo *object, guint64 detail, gpointer data, guint32 size )
 {
 
-
   // Если текущий размер объекта меньше нового размера или больше нового на 5%, выделяем память заново.
-  if( object->size < size || ( (gdouble)size / (gdouble)object->allocated ) < 0.95 )
+  if( size <= SMALL_OBJECT_SIZE || object->allocated < size || ( (gdouble)size / (gdouble)object->allocated ) < 0.95 )
     {
-    priv->used_size -= object->allocated;
-    free( object->data );
-    object->data = malloc( size );
-    object->allocated = size;
-    priv->used_size += size;
+    if( object->allocated )
+      {
+      g_free( object->data );
+      priv->used_size -= object->allocated;
+      }
+    if( size > SMALL_OBJECT_SIZE )
+      {
+      object->data = g_malloc( size );
+      object->allocated = size;
+      priv->used_size += size;
+      }
+    else
+      object->value = 0;
     }
 
   // Новый размер объекта.
@@ -294,12 +312,10 @@ static ObjectInfo *hyscan_cached_update_object( HyScanCachedPriv *priv, ObjectIn
   object->detail = detail;
 
   // Данные объекта.
-  if( object->data ) memcpy( object->data, data, size );
+  if( size > SMALL_OBJECT_SIZE )
+    memcpy( object->data, data, size );
   else
-    {
-    hyscan_cached_drop_object( priv, object );
-    object = NULL;
-    }
+    memcpy( &object->value, data, size );
 
   return object;
 
@@ -313,8 +329,11 @@ static void hyscan_cached_drop_object( HyScanCachedPriv *priv, ObjectInfo *objec
   hyscan_cached_remove_object_from_used( priv, object );
 
   priv->n_objects -= 1;
-  priv->used_size -= object->allocated;
-  free( object->data );
+  if( object->allocated )
+    {
+    g_free( object->data );
+    priv->used_size -= object->allocated;
+    }
 
   g_hash_table_steal( priv->objects, &object->hash );
   g_trash_stack_push( &priv->free_objects, object );
@@ -403,18 +422,26 @@ gboolean hyscan_cached_set( HyScanCache *cache, guint64 key, guint64 detail, gpo
 
   g_rw_lock_writer_lock( &priv->cache_lock );
 
+  // Ищем объект в кэше.
+  object = g_hash_table_lookup( priv->objects, &key );
+
+  // Если размер объекта равен нулю или нет данных, удаляем объект.
+  if( size == 0 || data == NULL )
+    {
+    if( object ) hyscan_cached_drop_object( priv, object );
+    g_rw_lock_writer_unlock( &priv->cache_lock );
+    return TRUE;
+    }
+
   // Очищаем кэш если ...
 
   // ... достигнут лимит используемой памяти.
-  if( priv->used_size + size > priv->cache_size )
+  if( ( size > SMALL_OBJECT_SIZE ) && ( priv->used_size + size > priv->cache_size ) )
     hyscan_cached_free_used( priv, size );
 
   // ... достигнут лимит числа объектов.
-  if( priv->n_objects == priv->max_n_objects )
+  if( !object && priv->n_objects == priv->max_n_objects )
     hyscan_cached_free_used( priv, 1 );
-
-  // Ищем объект в кэше.
-  object = g_hash_table_lookup( priv->objects, &key );
 
   // Если объект уже был в кэше, изменяем его.
   if( object )
@@ -423,10 +450,6 @@ gboolean hyscan_cached_set( HyScanCache *cache, guint64 key, guint64 detail, gpo
   // Если объекта в кэше не было, создаём новый.
   else
     object = hyscan_cached_rise_object( priv, key, detail, data, size );
-
-  // Произошла ошибка при выделении памяти для объекта.
-  if( !object )
-    { g_rw_lock_writer_unlock( &priv->cache_lock ); return FALSE; }
 
   // Добавляем объект в кэш.
   if( !g_hash_table_contains( priv->objects, &object->hash ) )
@@ -470,7 +493,10 @@ gboolean hyscan_cached_get( HyScanCache *cache, guint64 key, guint64 detail, gpo
   if( buffer )
     {
     *buffer_size = *buffer_size < object->size ? *buffer_size : object->size;
-    memcpy( buffer, object->data, *buffer_size );
+    if( object->size > SMALL_OBJECT_SIZE )
+      memcpy( buffer, object->data, *buffer_size );
+    else
+      memcpy( buffer, &object->value, *buffer_size );
     }
   else
     *buffer_size = object->size;
