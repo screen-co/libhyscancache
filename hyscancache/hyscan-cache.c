@@ -17,7 +17,7 @@ G_DEFINE_INTERFACE( HyScanCache, hyscan_cache, G_TYPE_OBJECT );
 static void hyscan_cache_default_init( HyScanCacheInterface *iface ){ ; }
 
 
-gboolean hyscan_cache_set( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data, guint32 size )
+gboolean hyscan_cache_set( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data, gint32 size )
 {
 
   if( HYSCAN_CACHE_GET_IFACE( cache )->set )
@@ -28,7 +28,7 @@ gboolean hyscan_cache_set( HyScanCache *cache, const gchar *key, const gchar *de
 }
 
 
-gboolean hyscan_cache_set2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data1, guint32 size1, gpointer data2, guint32 size2 )
+gboolean hyscan_cache_set2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data1, gint32 size1, gpointer data2, gint32 size2 )
 {
 
   if( HYSCAN_CACHE_GET_IFACE( cache )->set2 )
@@ -39,7 +39,7 @@ gboolean hyscan_cache_set2( HyScanCache *cache, const gchar *key, const gchar *d
 }
 
 
-gboolean hyscan_cache_get( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer, guint32 *buffer_size )
+gboolean hyscan_cache_get( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer, gint32 *buffer_size )
 {
 
   if( HYSCAN_CACHE_GET_IFACE( cache )->get )
@@ -50,7 +50,7 @@ gboolean hyscan_cache_get( HyScanCache *cache, const gchar *key, const gchar *de
 }
 
 
-gboolean hyscan_cache_get2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer1, guint32 *buffer1_size, gpointer buffer2, guint32 *buffer2_size )
+gboolean hyscan_cache_get2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer1, gint32 *buffer1_size, gpointer buffer2, gint32 *buffer2_size )
 {
 
   if( HYSCAN_CACHE_GET_IFACE( cache )->get2 )

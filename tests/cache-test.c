@@ -34,7 +34,7 @@ gpointer data_writer( gpointer data )
     {
 
     gpointer data = patterns[ i%n_patterns ];
-    guint32 size = data_index ? big_size : small_size;
+    gint32 size = data_index ? big_size : small_size;
 
     g_snprintf( key, sizeof( key ), "%09d", i );
     if( !hyscan_cache_set2( cache, key, NULL, data, size, data, size ) )
@@ -52,7 +52,7 @@ gpointer data_writer( gpointer data )
 
     gint key_id = 2 * g_random_int_range( 0, n_objects / 2 ) + data_index;
     gpointer data = patterns[ key_id%n_patterns ];
-    guint32 size = data_index ? big_size : small_size;
+    gint32 size = data_index ? big_size : small_size;
 
     g_snprintf( key, sizeof( key ), "%09d", key_id );
     if( !hyscan_cache_set2( cache, key, NULL, data, size, data, size ) )
@@ -96,8 +96,7 @@ gpointer data_reader( gpointer data )
   for( i = 0; i < n_requests; i++ )
     {
 
-    guint32 size1 = pattern_size;
-    guint32 size2 = pattern_size;
+    gint32 size1, size2;
     gboolean status;
     gdouble req_time;
     gchar key[16];
@@ -107,6 +106,7 @@ gpointer data_reader( gpointer data )
     g_snprintf( key, sizeof( key ), "%09d", key_id );
 
     g_timer_start( timer );
+    size1 = size2 = ( ( key_id % 2 ) ? big_size : small_size );
     status = hyscan_cache_get2( cache, key, NULL, buffers[ thread_id ], &size1, buffers[ thread_id ] + size1, &size2 );
     req_time = g_timer_elapsed( timer, NULL );
 

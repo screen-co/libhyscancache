@@ -58,13 +58,13 @@ typedef struct HyScanCacheInterface {
 
   GTypeInterface parent;
 
-  gboolean  (*set)( HyScanCache *cache, guint64 key, guint64 detail, gpointer data, guint32 size );
+  gboolean  (*set)( HyScanCache *cache, guint64 key, guint64 detail, gpointer data, gint32 size );
 
-  gboolean (*set2)( HyScanCache *cache, guint64 key, guint64 detail, gpointer data1, guint32 size1, gpointer data2, guint32 size2 );
+  gboolean (*set2)( HyScanCache *cache, guint64 key, guint64 detail, gpointer data1, gint32 size1, gpointer data2, gint32 size2 );
 
-  gboolean  (*get)( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer, guint32 *buffer_size );
+  gboolean  (*get)( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer, gint32 *buffer_size );
 
-  gboolean (*get2)( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer1, guint32 *buffer1_size, gpointer buffer2, guint32 *buffer2_size );
+  gboolean (*get2)( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer1, gint32 *buffer1_size, gpointer buffer2, gint32 *buffer2_size );
 
 } HyScanCacheInterface;
 
@@ -89,7 +89,7 @@ GType hyscan_cache_get_type( void );
  * \return TRUE - если данные успешно сохранены в кэше, FALSE - в случае ошибки.
  *
 */
-gboolean hyscan_cache_set( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data, guint32 size );
+gboolean hyscan_cache_set( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data, gint32 size );
 
 
 /*!
@@ -111,7 +111,7 @@ gboolean hyscan_cache_set( HyScanCache *cache, const gchar *key, const gchar *de
  * \return TRUE - если данные успешно сохранены в кэше, FALSE - в случае ошибки.
  *
 */
-gboolean hyscan_cache_set2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data1, guint32 size1, gpointer data2, guint32 size2 );
+gboolean hyscan_cache_set2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer data1, gint32 size1, gpointer data2, gint32 size2 );
 
 
 /*!
@@ -139,7 +139,7 @@ gboolean hyscan_cache_set2( HyScanCache *cache, const gchar *key, const gchar *d
  * \return TRUE - если данные найдены в кэше и считаны, FALSE - в случае ошибки.
  *
 */
-gboolean hyscan_cache_get( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer, guint32 *buffer_size );
+gboolean hyscan_cache_get( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer, gint32 *buffer_size );
 
 
 /*!
@@ -163,7 +163,7 @@ gboolean hyscan_cache_get( HyScanCache *cache, const gchar *key, const gchar *de
  * \return TRUE - если данные найдены в кэше и считаны, FALSE - в случае ошибки.
  *
 */
-gboolean hyscan_cache_get2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer1, guint32 *buffer1_size, gpointer buffer2, guint32 *buffer2_size );
+gboolean hyscan_cache_get2( HyScanCache *cache, const gchar *key, const gchar *detail, gpointer buffer1, gint32 *buffer1_size, gpointer buffer2, gint32 *buffer2_size );
 
 
 G_END_DECLS

@@ -35,8 +35,8 @@ struct ObjectInfo {                              // Информация об о
 
   guint64                    hash;               // Хэш идентификатора объекта.
   guint64                    detail;             // Хэш дополнительной информации объекта.
-  guint32                    size;               // Размер объекта.
-  guint32                    allocated;          // Размер выделенной для объекта области памяти.
+  gint32                     size;               // Размер объекта.
+  gint32                     allocated;          // Размер выделенной для объекта области памяти.
 
   union {
     gpointer                *data;               // Указатель на данные объекта.
@@ -250,7 +250,7 @@ static ObjectInfo *hyscan_cached_rise_object( HyScanCachedPriv *priv, guint64 ke
 
   ObjectInfo *object = g_trash_stack_pop( &priv->free_objects );
 
-  guint32 size = size1 + size2;
+  gint32 size = size1 + size2;
 
   if( !object ) return NULL;
 
@@ -270,7 +270,7 @@ static ObjectInfo *hyscan_cached_rise_object( HyScanCachedPriv *priv, guint64 ke
     object->allocated = size;
     priv->used_size += size;
     memcpy( object->data, data1, size1 );
-    if( size2 ) memcpy( object->data + size1, data2, size2 );
+    if( size2 ) memcpy( (gint8*)object->data + size1, data2, size2 );
     }
 
   // Данные объекта малого размера.
@@ -279,7 +279,7 @@ static ObjectInfo *hyscan_cached_rise_object( HyScanCachedPriv *priv, guint64 ke
     object->allocated = 0;
     object->value = 0;
     memcpy( &object->value, data1, size1 );
-    if( size2 ) memcpy( ( (gpointer)&object->value ) + size1, data2, size2 );
+    if( size2 ) memcpy( ( (gint8*)&object->value ) + size1, data2, size2 );
     }
 
   priv->n_objects += 1;
@@ -293,7 +293,7 @@ static ObjectInfo *hyscan_cached_rise_object( HyScanCachedPriv *priv, guint64 ke
 static ObjectInfo *hyscan_cached_update_object( HyScanCachedPriv *priv, ObjectInfo *object, guint64 detail, gpointer data1, guint32 size1, gpointer data2, guint32 size2 )
 {
 
-  guint32 size = size1 + size2;
+  gint32 size = size1 + size2;
 
   // Если текущий размер объекта меньше нового размера или больше нового на 5%, выделяем память заново.
   if( size <= SMALL_OBJECT_SIZE || object->allocated < size || ( (gdouble)size / (gdouble)object->allocated ) < 0.95 )
@@ -321,12 +321,12 @@ static ObjectInfo *hyscan_cached_update_object( HyScanCachedPriv *priv, ObjectIn
   if( size > SMALL_OBJECT_SIZE )
     {
     memcpy( object->data, data1, size1 );
-    if( size2 ) memcpy( object->data + size1, data2, size2 );
+    if( size2 ) memcpy( (gint8*)object->data + size1, data2, size2 );
     }
   else
     {
     memcpy( &object->value, data1, size1 );
-    if( size2 ) memcpy( ( (gpointer)&object->value ) + size1, data2, size2 );
+    if( size2 ) memcpy( ( (gint8*)&object->value ) + size1, data2, size2 );
     }
 
   return object;
@@ -422,16 +422,19 @@ static void hyscan_cached_place_object_on_top_of_used( HyScanCachedPriv *priv, O
 
 
 // Функция добавляет или изменяет объект в кэше.
-gboolean hyscan_cached_set2( HyScanCache *cache, guint64 key, guint64 detail, gpointer data1, guint32 size1, gpointer data2, guint32 size2 )
+gboolean hyscan_cached_set2( HyScanCache *cache, guint64 key, guint64 detail, gpointer data1, gint32 size1, gpointer data2, gint32 size2 )
 {
 
   HyScanCachedPriv *priv = HYSCAN_CACHED_GET_PRIVATE( cache );
 
-  guint32 size = size1 + size2;
+  gint32 size = size1 + size2;
   ObjectInfo *object;
 
   // Если размер нового объекта слишком большой, не сохраняем его.
   if( size > priv->cache_size / 10 ) return FALSE;
+
+  // Проверяем размер данных.
+  if( size1 < 0 || size2 < 0 ) return FALSE;
 
   g_rw_lock_writer_lock( &priv->cache_lock );
 
@@ -479,7 +482,7 @@ gboolean hyscan_cached_set2( HyScanCache *cache, guint64 key, guint64 detail, gp
 
 
 // Функция добавляет или изменяет объект в кэше.
-gboolean hyscan_cached_set( HyScanCache *cache, guint64 key, guint64 detail, gpointer data, guint32 size )
+gboolean hyscan_cached_set( HyScanCache *cache, guint64 key, guint64 detail, gpointer data, gint32 size )
 {
 
   return hyscan_cached_set2( cache, key, detail, data, size, NULL, 0 );
@@ -488,12 +491,16 @@ gboolean hyscan_cached_set( HyScanCache *cache, guint64 key, guint64 detail, gpo
 
 
 // Функция считывает объект из кэша.
-gboolean hyscan_cached_get2( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer1, guint32 *buffer1_size, gpointer buffer2, guint32 *buffer2_size )
+gboolean hyscan_cached_get2( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer1, gint32 *buffer1_size, gpointer buffer2, gint32 *buffer2_size )
 {
 
   HyScanCachedPriv *priv = HYSCAN_CACHED_GET_PRIVATE( cache );
 
   ObjectInfo *object;
+
+  // Проверка размеров буферов.
+  if( buffer1 && *buffer1_size < 0 ) return FALSE;
+  if( buffer2 && *buffer2_size < 0 ) return FALSE;
 
   g_rw_lock_reader_lock( &priv->cache_lock );
 
@@ -511,7 +518,7 @@ gboolean hyscan_cached_get2( HyScanCache *cache, guint64 key, guint64 detail, gp
   // Перемещаем объект в начало списка используемых.
   hyscan_cached_place_object_on_top_of_used( priv, object );
 
-  // Копируем данные объекта.
+  // Копируем первую часть данных объекта.
   if( buffer1 )
     {
     *buffer1_size = *buffer1_size < object->size ? *buffer1_size : object->size;
@@ -520,15 +527,19 @@ gboolean hyscan_cached_get2( HyScanCache *cache, guint64 key, guint64 detail, gp
     else
       memcpy( buffer1, &object->value, *buffer1_size );
     }
+
+  // Копируем вторую часть данных объекта.
   if( buffer1 && buffer2 )
     {
     *buffer2_size = *buffer2_size < ( object->size - *buffer1_size ) ? *buffer2_size : ( object->size - *buffer1_size );
     if( object->size > SMALL_OBJECT_SIZE )
-      memcpy( buffer2, object->data + *buffer1_size, *buffer2_size );
+      memcpy( buffer2, (gint8*)object->data + *buffer1_size, *buffer2_size );
     else
-      memcpy( buffer2, ( (gpointer)&object->value ) + *buffer1_size, *buffer2_size );
+      memcpy( buffer2, ( (gint8*)&object->value ) + *buffer1_size, *buffer2_size );
     }
-  else
+
+  // Размер объекта в кэше.
+  if( !buffer1 && !buffer2 )
     {
     if( buffer1_size ) *buffer1_size = object->size;
     if( buffer2_size ) *buffer2_size = 0;
@@ -542,7 +553,7 @@ gboolean hyscan_cached_get2( HyScanCache *cache, guint64 key, guint64 detail, gp
 
 
 // Функция считывает объект из кэша.
-gboolean hyscan_cached_get( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer, guint32 *buffer_size )
+gboolean hyscan_cached_get( HyScanCache *cache, guint64 key, guint64 detail, gpointer buffer, gint32 *buffer_size )
 {
 
   return hyscan_cached_get2( cache, key,detail, buffer, buffer_size, NULL, NULL );
