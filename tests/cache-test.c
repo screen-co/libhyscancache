@@ -33,8 +33,11 @@ gpointer data_writer( gpointer data )
   for( i = data_index; i < n_objects; i += 2 )
     {
 
+    gpointer data = patterns[ i%n_patterns ];
+    guint32 size = data_index ? big_size : small_size;
+
     g_snprintf( key, sizeof( key ), "%09d", i );
-    if( !hyscan_cache_set( cache, key, NULL, patterns[ i%n_patterns ], data_index ? big_size : small_size ) )
+    if( !hyscan_cache_set2( cache, key, NULL, data, size, data, size ) )
       g_message( "data_writer: '%s' set error", key );
 
     }
@@ -48,9 +51,11 @@ gpointer data_writer( gpointer data )
     {
 
     gint key_id = 2 * g_random_int_range( 0, n_objects / 2 ) + data_index;
-    g_snprintf( key, sizeof( key ), "%09d", key_id );
+    gpointer data = patterns[ key_id%n_patterns ];
+    guint32 size = data_index ? big_size : small_size;
 
-    if( !hyscan_cache_set( cache, key, NULL, patterns[ key_id%n_patterns ], data_index ? big_size : small_size ) )
+    g_snprintf( key, sizeof( key ), "%09d", key_id );
+    if( !hyscan_cache_set2( cache, key, NULL, data, size, data, size ) )
       g_message( "data_writer: '%s' set error", key );
 
     g_usleep( 1 );
@@ -91,7 +96,8 @@ gpointer data_reader( gpointer data )
   for( i = 0; i < n_requests; i++ )
     {
 
-    guint32 size = pattern_size;
+    guint32 size1 = pattern_size;
+    guint32 size2 = pattern_size;
     gboolean status;
     gdouble req_time;
     gchar key[16];
@@ -101,18 +107,20 @@ gpointer data_reader( gpointer data )
     g_snprintf( key, sizeof( key ), "%09d", key_id );
 
     g_timer_start( timer );
-    status = hyscan_cache_get( cache, key, NULL, buffers[ thread_id ], &size );
+    status = hyscan_cache_get2( cache, key, NULL, buffers[ thread_id ], &size1, buffers[ thread_id ] + size1, &size2 );
     req_time = g_timer_elapsed( timer, NULL );
 
     if( status )
       {
 
       // Проверка размера данных.
-      if( size != ( ( key_id % 2 ) ? big_size : small_size ) )
-        g_message( "test thread %d: '%s' size mismatch %d != %d", thread_id, key, size, key_id % 2 ? big_size : small_size );
+      if( size1 != size2 || size1 != ( ( key_id % 2 ) ? big_size : small_size ) )
+        g_message( "test thread %d: '%s' size mismatch %d != %d", thread_id, key, size1, key_id % 2 ? big_size : small_size );
       // Проверка данных.
-      else if( memcmp( buffers[ thread_id ], patterns[ key_id%n_patterns ], size ) )
-        g_message( "test thread %d: '%s' data mismatch", thread_id, key );
+      else if( memcmp( buffers[ thread_id ], patterns[ key_id%n_patterns ], size1 ) )
+        g_message( "test thread %d: '%s' data1 mismatch", thread_id, key );
+      else if( memcmp( buffers[ thread_id ] + size1, patterns[ key_id%n_patterns ], size2 ) )
+        g_message( "test thread %d: '%s' data2 mismatch", thread_id, key );
       else
         {
         hit_time += req_time;
@@ -207,7 +215,7 @@ int main( int argc, char **argv )
   // Буферы обмена.
   buffers = g_malloc( n_threads * sizeof( gint8* ) );
   for( i = 0; i < n_threads; i++ )
-    buffers[i] = g_malloc( pattern_size );
+    buffers[i] = g_malloc( 2 * pattern_size );
 
   // Потоки записи данных в кэш.
   small_data_writer_thread = g_thread_new( "test-thread", data_writer, GINT_TO_POINTER( 0 ) );
