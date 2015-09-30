@@ -442,7 +442,7 @@ gboolean hyscan_cached_set2( HyScanCache *cache, guint64 key, guint64 detail, gp
   object = g_hash_table_lookup( priv->objects, &key );
 
   // Если размер объекта равен нулю или нет данных, удаляем объект.
-  if( size == 0 || data1 == NULL )
+  if( size == 0 || !data1 )
     {
     if( object ) hyscan_cached_drop_object( priv, object );
     g_rw_lock_writer_unlock( &priv->cache_lock );
@@ -463,13 +463,12 @@ gboolean hyscan_cached_set2( HyScanCache *cache, guint64 key, guint64 detail, gp
   if( object )
     object = hyscan_cached_update_object( priv, object, detail, data1, size1, data2, size2 );
 
-  // Если объекта в кэше не было, создаём новый.
+  // Если объекта в кэше не было, создаём новый и добавляем в кэш.
   else
+    {
     object = hyscan_cached_rise_object( priv, key, detail, data1, size1, data2, size2 );
-
-  // Добавляем объект в кэш.
-  if( !g_hash_table_contains( priv->objects, &object->hash ) )
     g_hash_table_insert( priv->objects, &object->hash, object );
+    }
 
   // Перемещаем объект в начало списка используемых.
   hyscan_cached_place_object_on_top_of_used( priv, object );
