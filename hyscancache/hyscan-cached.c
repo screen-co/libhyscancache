@@ -158,7 +158,7 @@ hyscan_cached_object_constructed (GObject *object)
 {
   HyScanCached *cached = HYSCAN_CACHED (object);
 
-  guint64 i;
+  gint64 i;
 
   /* Максимально возможное число объектов в кэше. */
   cached->max_n_objects = cached->cache_size / 8192;
