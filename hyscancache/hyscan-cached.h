@@ -22,26 +22,29 @@
  * удаляет объекты, доступ к которым осуществлялся давно, и использует освободившуюся память для
  * сохранения новых объектов.
  *
-*/
+ */
 
-#ifndef _hyscan_cached_h
-#define _hyscan_cached_h
+#ifndef __HYSCAN_CACHED_H__
+#define __HYSCAN_CACHED_H__
 
 #include <hyscan-cache.h>
 
 G_BEGIN_DECLS
 
+#define HYSCAN_TYPE_CACHED             (hyscan_cached_get_type ())
+#define HYSCAN_CACHED(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_CACHED, HyScanCached))
+#define HYSCAN_IS_CACHED(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_CACHED))
+#define HYSCAN_CACHED_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_CACHED, HyScanCachedClass))
+#define HYSCAN_IS_CACHED_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_CACHED))
+#define HYSCAN_CACHED_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_CACHED, HyScanCachedClass))
 
-#define HYSCAN_TYPE_CACHED                      ( hyscan_cached_get_type() )
-#define HYSCAN_CACHED( obj )                    ( G_TYPE_CHECK_INSTANCE_CAST( ( obj ), HYSCAN_TYPE_CACHED, HyScanCached ) )
-#define HYSCAN_IS_CACHED( obj )                 ( G_TYPE_CHECK_INSTANCE_TYPE( ( obj ), HYSCAN_TYPE_CACHED ) )
-#define HYSCAN_CACHED_CLASS( klass )            ( G_TYPE_CHECK_CLASS_CAST( ( klass ), HYSCAN_TYPE_CACHED, HyScanCachedClass ) )
-#define HYSCAN_IS_CACHED_CLASS( klass )         ( G_TYPE_CHECK_CLASS_TYPE( ( klass ), HYSCAN_TYPE_CACHED ) )
-#define HYSCAN_CACHED_GET_CLASS( obj )          ( G_TYPE_INSTANCE_GET_CLASS( ( obj ), HYSCAN_TYPE_CACHED, HyScanCachedClass ) )
+typedef struct _HyScanCached HyScanCached;
+typedef struct _HyScanCachedClass HyScanCachedClass;
 
-
-typedef GObject HyScanCached;
-typedef GObjectClass HyScanCachedClass;
+struct _HyScanCachedClass
+{
+  GObjectClass parent_class;
+};
 
 
 GType hyscan_cached_get_type( void );
@@ -54,10 +57,10 @@ GType hyscan_cached_get_type( void );
  *
  * \return Указатель на объект \link HyScanCached \endlink.
  *
-*/
-HyScanCached *hyscan_cached_new( guint32 cache_size );
-
+ */
+HYSCAN_CACHE_EXPORT
+HyScanCached  *hyscan_cached_new       (guint32                cache_size);
 
 G_END_DECLS
 
-#endif // _hyscan_cached_h
+#endif /* __HYSCAN_CACHED_H__ */
