@@ -141,9 +141,15 @@ hyscan_cached_set_property (GObject      *object,
     case PROP_CACHE_SIZE:
       cached->cache_size = g_value_get_uint (value);
       if (cached->cache_size < MIN_CACHE_SIZE)
-        cached->cache_size = MIN_CACHE_SIZE;
+        {
+          g_warning ("hyscan_cached: increasing cache size to the default minimum of %d Mb", MIN_CACHE_SIZE);
+          cached->cache_size = MIN_CACHE_SIZE;
+        }
       if (cached->cache_size > MAX_CACHE_SIZE)
-        cached->cache_size = MAX_CACHE_SIZE;
+        {
+          g_warning ("hyscan_cached: truncating cache size to the default maximum of %d Mb", MAX_CACHE_SIZE);
+          cached->cache_size = MAX_CACHE_SIZE;
+        }
       cached->cache_size *= 1024 * 1024;
       break;
 
