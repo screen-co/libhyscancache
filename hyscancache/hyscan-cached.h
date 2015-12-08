@@ -1,4 +1,4 @@
-/*!
+/**
  * \file hyscan-cached.h
  *
  * \brief Заголовочный файл системы кэширования данных в оперативной памяти
@@ -46,10 +46,10 @@ struct _HyScanCachedClass
   GObjectClass parent_class;
 };
 
-
+HYSCAN_CACHE_EXPORT
 GType hyscan_cached_get_type( void );
 
-/*!
+/**
  *
  * Функция создаёт новый объект \link HyScanCached \endlink.
  *

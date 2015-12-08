@@ -1,4 +1,4 @@
-/*!
+/**
  * \file hyscan-cached.c
  *
  * \brief Исоходный файл системы кэширования данных в оперативной памяти
@@ -257,7 +257,7 @@ hyscan_cached_free_used (HyScanCached *cached,
 
 /* Функция выбирает структуру с информацией об объекте из кучи свободных, выделяет память под объект
    и сохраняет данные. */
-static ObjectInfo*
+static ObjectInfo *
 hyscan_cached_rise_object (HyScanCached *cached,
                            guint64       key,
                            guint64       detail,
@@ -309,7 +309,7 @@ hyscan_cached_rise_object (HyScanCached *cached,
 }
 
 /* Функция обновляет используемый объект. */
-static ObjectInfo*
+static ObjectInfo *
 hyscan_cached_update_object (HyScanCached *cached,
                              ObjectInfo   *object,
                              guint64       detail,
@@ -447,6 +447,12 @@ hyscan_cached_place_object_on_top_of_used (HyScanCached *cached,
   g_rw_lock_writer_unlock (&cached->object_lock);
 }
 
+/* Функция создаёт новый объект HyScanCached. */
+HyScanCached *
+hyscan_cached_new (guint32 cache_size)
+{
+  return g_object_new (HYSCAN_TYPE_CACHED, "cache-size", cache_size, NULL);
+}
 
 /* Функция добавляет или изменяет объект в кэше. */
 gboolean
@@ -613,13 +619,6 @@ hyscan_cached_get (HyScanCache *cache,
                    gint32      *buffer_size)
 {
   return hyscan_cached_get2 (cache, key,detail, buffer, buffer_size, NULL, NULL);
-}
-
-/* Функция создаёт новый объект HyScanCached. */
-HyScanCached*
-hyscan_cached_new (guint32 cache_size)
-{
-  return g_object_new (HYSCAN_TYPE_CACHED, "cache-size", cache_size, NULL);
 }
 
 static void

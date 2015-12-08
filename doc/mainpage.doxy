@@ -1,4 +1,4 @@
-/*! \mainpage Библиотека HyScanCache
+/** \mainpage Библиотека HyScanCache
  *
  * Библиотека предназначена для организации системы кэширования данных и взаимодействия с ней.
  *
@@ -6,4 +6,4 @@
  * реализацию кэша с хранением данных в оперативной памяти \link HyScanCached \endlink и
  * клиент-серверную реализацию \link HyScanCacheClient \endlink, \link HyScanCacheServer \endlink.
  *
-*/
+ */

@@ -1,4 +1,4 @@
-/*!
+/**
  * \file hyscan-cache.h
  *
  * \brief Заголовочный файл интерфейса системы кэширования HyScan
@@ -92,7 +92,7 @@ struct _HyScanCacheInterface
 HYSCAN_CACHE_EXPORT
 GType          hyscan_cache_get_type   (void);
 
-/*!
+/**
  *
  * Функция помещает данные в кэш.
  *
@@ -116,7 +116,7 @@ gboolean       hyscan_cache_set        (HyScanCache           *cache,
                                         gpointer               data,
                                         gint32                 size);
 
-/*!
+/**
  *
  * Функция помещает данные из двух разных мест в одну запись кэша.
  *
@@ -144,7 +144,7 @@ gboolean       hyscan_cache_set2       (HyScanCache           *cache,
                                         gpointer               data2,
                                         gint32                 size2);
 
-/*!
+/**
  *
  * Функция считывает данные из кэша.
  *
@@ -176,7 +176,7 @@ gboolean       hyscan_cache_get        (HyScanCache           *cache,
                                         gpointer               buffer,
                                         gint32                *buffer_size);
 
-/*!
+/**
  *
  * Функция считывает данные из кэша в два разных буфера.
  *
