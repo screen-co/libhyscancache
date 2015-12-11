@@ -70,8 +70,6 @@ struct _HyScanCached
   GRWLock              object_lock;            /* Блокировка доступа к объектам. */
 };
 
-
-
 static void            hyscan_cached_interface_init               (HyScanCacheInterface *iface);
 static void            hyscan_cached_set_property                 (GObject              *object,
                                                                    guint                 prop_id,
@@ -495,7 +493,10 @@ hyscan_cached_set2 (HyScanCache *cache,
 
   /* ... достигнут лимит используемой памяти. */
   if ((size > SMALL_OBJECT_SIZE) && (cached->used_size + size > cached->cache_size))
-    hyscan_cached_free_used (cached, size);
+    {
+      hyscan_cached_free_used (cached, size);
+      object = g_hash_table_lookup (cached->objects, &key);
+    }
 
   /* ... достигнут лимит числа объектов. */
   if (object == NULL && cached->n_objects == cached->max_n_objects)
