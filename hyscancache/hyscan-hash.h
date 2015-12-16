@@ -1,4 +1,3 @@
-
 #ifndef __HYSCAN_HASH_H__
 #define __HYSCAN_HASH_H__
 
