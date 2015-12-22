@@ -1,5 +1,10 @@
+#include <hyscan-cache-server.h>
+#include <hyscan-cache-client.h>
 #include <hyscan-cached.h>
 #include <string.h>
+
+#define MAX_THREADS (32)
+#define MAX_SIZE    (1024 * 1024)
 
 gint cache_size = 0;
 gint n_patterns = 0;
@@ -8,9 +13,11 @@ gint n_requests = 0;
 gint n_objects = 0;
 gint small_size = 0;
 gint big_size = 0;
+gboolean rpc = FALSE;
 gboolean update = FALSE;
 
-HyScanCache *cache;
+HyScanCache *cache[MAX_THREADS+2];
+HyScanCacheServer *server;
 
 gint pattern_size;
 guint8 **patterns;
@@ -33,7 +40,7 @@ data_writer (gpointer data)
       gint32 size = data_index ? big_size : small_size;
 
       g_snprintf (key, sizeof(key), "%09d", i);
-      if (!hyscan_cache_set2 (cache, key, NULL, data, size, data, size))
+      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size, data, size))
         g_message ("data_writer: '%s' set error", key);
     }
 
@@ -49,7 +56,7 @@ data_writer (gpointer data)
       gint32 size = data_index ? big_size : small_size;
 
       g_snprintf (key, sizeof (key), "%09d", key_id);
-      if (!hyscan_cache_set2 (cache, key, NULL, data, size, data, size))
+      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size, data, size))
         g_message ("data_writer: '%s' set error", key);
 
       g_usleep (1);
@@ -98,7 +105,7 @@ data_reader (gpointer data)
 
       g_timer_start (timer);
       size1 = size2 = ((key_id % 2) ? big_size : small_size);
-      status = hyscan_cache_get2 (cache, key, NULL,
+      status = hyscan_cache_get2 (cache[thread_id+2], key, NULL,
                                   buffers[thread_id], &size1,
                                   buffers[thread_id] + size1, &size2);
       req_time = g_timer_elapsed (timer, NULL);
@@ -159,6 +166,7 @@ main (int argc, char **argv)
     GOptionEntry entries[] =
       {
         { "cache-size", 'm', 0, G_OPTION_ARG_INT, &cache_size, "Cache size, Mb", NULL },
+        { "rpc", 'c', 0, G_OPTION_ARG_NONE, &rpc, "Use rpc interface", NULL },
         { "patterns", 'p', 0, G_OPTION_ARG_INT, &n_patterns, "Number of testing patterns", NULL },
         { "threads", 't', 0, G_OPTION_ARG_INT, &n_threads, "Number of working threads", NULL },
         { "updates", 'u', 0, G_OPTION_ARG_NONE, &update, "Update cache data during test", NULL },
@@ -196,15 +204,26 @@ main (int argc, char **argv)
   }
 
   /* Ограничения. */
-  if (n_threads > 32)
-    n_threads = 32;
-  if (small_size > 1024 * 1024)
-    small_size = 1024 * 1024;
-  if (big_size > 1024 * 1024)
-    big_size = 1024 * 1024;
+  if (n_threads > MAX_THREADS)
+    n_threads = MAX_THREADS;
+  if (small_size > MAX_SIZE)
+    small_size = MAX_SIZE;
+  if (big_size > MAX_SIZE)
+    big_size = MAX_SIZE;
 
   /* Создаём кэш. */
-  cache = HYSCAN_CACHE( hyscan_cached_new( cache_size ) );
+  if (rpc)
+    {
+      server = hyscan_cache_server_new ("local", cache_size, n_threads, n_threads + 2);
+      for (i = 0; i < n_threads + 2; i++)
+        cache[i] = HYSCAN_CACHE (hyscan_cache_client_new ("local"));
+    }
+  else
+    {
+      cache[0] = HYSCAN_CACHE (hyscan_cached_new (cache_size));
+      for (i = 1; i < n_threads + 2; i++)
+        cache[i] = cache[0];
+    }
 
   /* Шаблоны тестирования. */
   pattern_size = big_size > small_size ? big_size : small_size;
@@ -255,7 +274,16 @@ main (int argc, char **argv)
   g_free (buffers);
   g_free (patterns);
 
-  g_object_unref (cache);
+  if (rpc)
+    {
+      for (i = 0; i < n_threads + 2; i++)
+        g_object_unref (cache[i]);
+      g_object_unref (server);
+    }
+  else
+    {
+      g_object_unref (cache[0]);
+    }
 
   return 0;
 }

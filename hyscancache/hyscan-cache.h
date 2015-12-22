@@ -36,6 +36,10 @@
  * размеры каждой из частей. При чтении данных в первую очередь будет заполнен первый буфер, а оставшиеся
  * данные будут помещены во второй буфер.
  *
+ * Существуют функции #hyscan_cache_set2i и #hyscan_cache_get2i, аналогичные функциям #hyscan_cache_set2 и
+ * #hyscan_cache_get2, но отличающиеся способом задания ключа и вспомогательной информации. В этих
+ * функциях ключ и вспомогательная информация задаются как 64-х битное целое беззнаковое число.
+ *
  */
 
 #ifndef __HYSCAN_CACHE_H__
@@ -146,6 +150,34 @@ gboolean       hyscan_cache_set2       (HyScanCache           *cache,
 
 /**
  *
+ * Функция помещает данные из двух разных мест в одну запись кэша.
+ *
+ * Если переменная detail = 0, вспомогательная информация не будет учитываться для этого объекта.
+ *
+ * Если размер данных равен нулю или data1 = NULL, объект удаляется из кэша.
+ *
+ * \param cache указатель на интерфейс \link HyScanCache \endlink;
+ * \param key ключ объекта;
+ * \param detail вспомогательная информация или NULL;
+ * \param data1 указатель на первую часть сохраняемых данных или NULL;
+ * \param size1 размер первой части сохраняемых данных;
+ * \param data2 указатель на вторую часть сохраняемых данных или NULL;
+ * \param size2 размер второй части сохраняемых данных.
+ *
+ * \return TRUE - если данные успешно сохранены в кэше, FALSE - в случае ошибки.
+ *
+ */
+HYSCAN_CACHE_EXPORT
+gboolean       hyscan_cache_set2i      (HyScanCache           *cache,
+                                        guint64                key,
+                                        guint64                detail,
+                                        gpointer               data1,
+                                        guint32                size1,
+                                        gpointer               data2,
+                                        guint32                size2);
+
+/**
+ *
  * Функция считывает данные из кэша.
  *
  * Если переменная detail = NULL, вспомогательная информация не будет учитываться для этого объекта.
@@ -201,6 +233,36 @@ HYSCAN_CACHE_EXPORT
 gboolean       hyscan_cache_get2       (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
+                                        gpointer               buffer1,
+                                        guint32               *buffer1_size,
+                                        gpointer               buffer2,
+                                        guint32               *buffer2_size);
+
+/**
+ *
+ * Функция считывает данные из кэша в два разных буфера.
+ *
+ * Если переменная detail = 0, вспомогательная информация не будет учитываться для этого объекта.
+ *
+ * Размер данных в кэше можно узнать аналогично функции #hyscan_cache_get установив buffer2 = NULL.
+ * В buffer1_size возвращается сумарный размер данных объекта в кэше. Узнать отдельно размер первой
+ * и второй частей нельзя.
+ *
+ * \param cache указатель на интерфейс \link HyScanCache \endlink;
+ * \param key ключ объекта;
+ * \param detail вспомогательная информация или NULL;
+ * \param buffer1 указатель на первый буфер для записи данных или NULL;
+ * \param buffer1_size размер первого буфера для данных / размер данных;
+ * \param buffer2 указатель на втрой буфер для записи данных или NULL;
+ * \param buffer2_size размер второго буфера для данных / размер данных.
+ *
+ * \return TRUE - если данные найдены в кэше и считаны, FALSE - в случае ошибки.
+ *
+ */
+HYSCAN_CACHE_EXPORT
+gboolean       hyscan_cache_get2i      (HyScanCache           *cache,
+                                        guint64                key,
+                                        guint64                detail,
                                         gpointer               buffer1,
                                         guint32               *buffer1_size,
                                         gpointer               buffer2,

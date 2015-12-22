@@ -39,7 +39,7 @@ else ()
 endif ()
 
 #
-# Endianness check
+# Endianness check.
 test_big_endian (HYSCAN_CACHE_BIG_ENDIAN)
 if (${HYSCAN_CACHE_BIG_ENDIAN})
   add_definitions (-DFARMHASH_BIG_ENDIAN=1)
@@ -95,6 +95,24 @@ endif ()
 pkg_check_modules (GLIB2 REQUIRED "glib-2.0 gobject-2.0 gthread-2.0 gio-2.0")
 add_definitions (${GLIB2_CFLAGS})
 link_directories (${GLIB2_LIBRARY_DIRS})
+
+#
+# uRPC library default path.
+if (NOT URPC_SOURCE_DIR)
+  set (URPC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../urpc)
+endif ()
+
+#
+# uRPC dependencies.
+pkg_check_modules (URPC QUIET urpc)
+if (${URPC_FOUND})
+  add_definitions (${URPC_CFLAGS})
+  link_directories (${URPC_LIBRARY_DIRS})
+else ()
+  include_directories ("${URPC_SOURCE_DIR}/urpc")
+  link_directories ("${URPC_SOURCE_DIR}/bin")
+  set (URPC_LIBRARIES urpc)
+endif ()
 
 #
 # Include directories.

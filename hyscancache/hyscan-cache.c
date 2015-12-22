@@ -49,6 +49,22 @@ hyscan_cache_set2 (HyScanCache *cache,
 }
 
 gboolean
+hyscan_cache_set2i (HyScanCache *cache,
+                    guint64      key,
+                    guint64      detail,
+                    gpointer     data1,
+                    guint32      size1,
+                    gpointer     data2,
+                    guint32      size2)
+{
+  if (HYSCAN_CACHE_GET_IFACE (cache)->set2 != NULL )
+    return HYSCAN_CACHE_GET_IFACE (cache)->set2 (cache, key, detail,
+                                                        data1, size1, data2, size2);
+
+  return FALSE;
+}
+
+gboolean
 hyscan_cache_get  (HyScanCache *cache,
                    const gchar *key,
                    const gchar *detail,
@@ -73,6 +89,22 @@ hyscan_cache_get2 (HyScanCache *cache,
 {
   if( HYSCAN_CACHE_GET_IFACE (cache)->get2 != NULL )
     return HYSCAN_CACHE_GET_IFACE (cache)->get2 (cache, hyscan_hash64 (key), hyscan_hash64 (detail),
+                                                        buffer1, buffer1_size, buffer2, buffer2_size);
+
+  return FALSE;
+}
+
+gboolean
+hyscan_cache_get2i (HyScanCache *cache,
+                    guint64      key,
+                    guint64      detail,
+                    gpointer     buffer1,
+                    guint32     *buffer1_size,
+                    gpointer     buffer2,
+                    guint32     *buffer2_size)
+{
+  if( HYSCAN_CACHE_GET_IFACE (cache)->get2 != NULL )
+    return HYSCAN_CACHE_GET_IFACE (cache)->get2 (cache, key, detail,
                                                         buffer1, buffer1_size, buffer2, buffer2_size);
 
   return FALSE;
