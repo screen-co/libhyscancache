@@ -15,7 +15,7 @@
 #include <urpc-client.h>
 
 #define hyscan_cache_client_lock_error(f)      do { \
-                                                 g_warning ("%s: can't lock rpc transport to '%s'", f, cachec->cache_uri); \
+                                                 g_warning ("%s: can't lock rpc transport to '%s'", f, cachec->uri); \
                                                  goto exit; \
                                                } while (0)
 
@@ -32,7 +32,7 @@
 enum
 {
   PROP_O,
-  PROP_CACHE_URI
+  PROP_URI
 };
 
 /* Внутренние данные объекта. */
@@ -40,7 +40,7 @@ struct _HyScanCacheClient
 {
   GObject              parent_instance;
 
-  gchar               *cache_uri;
+  gchar               *uri;
   uRpcClient          *rpc;
 };
 
@@ -64,8 +64,8 @@ hyscan_cache_client_class_init (HyScanCacheClientClass *klass)
   object_class->constructed = hyscan_cache_client_object_constructed;
   object_class->finalize = hyscan_cache_client_object_finalize;
 
-  g_object_class_install_property (object_class, PROP_CACHE_URI,
-                                   g_param_spec_string ("cache-uri", "Cache uri", "Cache uri", NULL,
+  g_object_class_install_property (object_class, PROP_URI,
+                                   g_param_spec_string ("uri", "Uri", "Cache uri", NULL,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -84,8 +84,8 @@ hyscan_cache_client_set_property (GObject      *object,
 
   switch (prop_id)
     {
-    case PROP_CACHE_URI:
-      cachec->cache_uri = g_strdup_printf ("shm://%s", g_value_get_string (value));
+    case PROP_URI:
+      cachec->uri = g_strdup_printf ("shm://%s", g_value_get_string (value));
       break;
 
     default:
@@ -102,10 +102,10 @@ hyscan_cache_client_object_constructed (GObject *object)
   guint32 version;
 
   /* Подключаемся к RPC серверу. */
-  cachec->rpc = urpc_client_create (cachec->cache_uri, URPC_MAX_DATA_SIZE, URPC_DEFAULT_DATA_TIMEOUT);
+  cachec->rpc = urpc_client_create (cachec->uri, URPC_MAX_DATA_SIZE, URPC_DEFAULT_DATA_TIMEOUT);
   if (urpc_client_connect (cachec->rpc) < 0)
     {
-      g_warning ("hyscan_cache_client: can't connect to '%s'", cachec->cache_uri);
+      g_warning ("hyscan_cache_client: can't connect to '%s'", cachec->uri);
       urpc_client_destroy (cachec->rpc);
       cachec->rpc = NULL;
       return;
@@ -139,7 +139,7 @@ hyscan_cache_client_object_finalize (GObject *object)
 {
   HyScanCacheClient *cachec = HYSCAN_CACHE_CLIENT (object);
 
-  g_free (cachec->cache_uri);
+  g_free (cachec->uri);
   if (cachec->rpc != NULL)
     urpc_client_destroy (cachec->rpc);
 
@@ -148,9 +148,9 @@ hyscan_cache_client_object_finalize (GObject *object)
 
 /* Функция создаёт новый объект HyScanCacheClient. */
 HyScanCacheClient *
-hyscan_cache_client_new (gchar *cache_uri)
+hyscan_cache_client_new (gchar *uri)
 {
-  return g_object_new (HYSCAN_TYPE_CACHE_CLIENT, "cache-uri", cache_uri, NULL);
+  return g_object_new (HYSCAN_TYPE_CACHE_CLIENT, "uri", uri, NULL);
 }
 
 /* Функция добавляет или изменяет объект в кэше. */

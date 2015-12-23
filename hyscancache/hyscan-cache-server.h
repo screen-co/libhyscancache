@@ -45,8 +45,8 @@ GType                  hyscan_cache_server_get_type            (void);
  *
  * Функция создаёт новый объект \link HyScanCacheServer \endlink.
  *
- * \param cache_uri путь к серверу кэширования;
- * \param cache_size объём памяти для кэша, Мб;
+ * \param uri путь к серверу кэширования;
+ * \param size объём памяти для кэша, Мб;
  * \param n_threads число потоков сервера;
  * \param n_clients максимальное число клиентов сервера.
  *
@@ -54,8 +54,8 @@ GType                  hyscan_cache_server_get_type            (void);
  *
  */
 HYSCAN_CACHE_EXPORT
-HyScanCacheServer     *hyscan_cache_server_new                 (const gchar           *cache_uri,
-                                                                guint32                cache_size,
+HyScanCacheServer     *hyscan_cache_server_new                 (const gchar           *uri,
+                                                                guint32                size,
                                                                 guint32                n_threads,
                                                                 guint32                n_clients);
 

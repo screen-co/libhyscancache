@@ -17,8 +17,8 @@
 enum
 {
   PROP_O,
-  PROP_CACHE_URI,
-  PROP_CACHE_SIZE,
+  PROP_URI,
+  PROP_SIZE,
   PROP_N_THREADS,
   PROP_N_CLIENTS
 };
@@ -27,8 +27,8 @@ struct _HyScanCacheServer
 {
   GObject              parent_instance;
 
-  gchar               *cache_uri;
-  guint32              cache_size;
+  gchar               *uri;
+  guint32              size;
   HyScanCache         *cache;
 
   guint32              n_threads;
@@ -70,12 +70,12 @@ static void hyscan_cache_server_class_init( HyScanCacheServerClass *klass )
   object_class->constructed = hyscan_cache_server_object_constructed;
   object_class->finalize = hyscan_cache_server_object_finalize;
 
-  g_object_class_install_property (object_class, PROP_CACHE_URI,
-                                   g_param_spec_string ("cache-uri", "Cache uri", "Cache uri", NULL,
+  g_object_class_install_property (object_class, PROP_URI,
+                                   g_param_spec_string ("uri", "Uri", "Cache uri", NULL,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
-  g_object_class_install_property (object_class, PROP_CACHE_SIZE,
-                                   g_param_spec_uint ("cache-size", "Cache size", "Cache size, Mb",
+  g_object_class_install_property (object_class, PROP_SIZE,
+                                   g_param_spec_uint ("size", "Size", "Cache size, Mb",
                                                       0, G_MAXUINT32, 256,
                                                       G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
@@ -105,12 +105,12 @@ hyscan_cache_server_set_property (GObject      *object,
 
   switch (prop_id)
     {
-    case PROP_CACHE_URI:
-      cache_server->cache_uri = g_strdup_printf ("shm://%s", g_value_get_string (value));
+    case PROP_URI:
+      cache_server->uri = g_strdup_printf ("shm://%s", g_value_get_string (value));
       break;
 
-    case PROP_CACHE_SIZE:
-      cache_server->cache_size = g_value_get_uint (value);
+    case PROP_SIZE:
+      cache_server->size = g_value_get_uint (value);
       break;
 
     case PROP_N_THREADS:
@@ -133,9 +133,9 @@ hyscan_cache_server_object_constructed (GObject *object)
   HyScanCacheServer *cache_server = HYSCAN_CACHE_SERVER (object);
   gint status;
 
-  cache_server->cache = HYSCAN_CACHE (hyscan_cached_new (cache_server->cache_size));
+  cache_server->cache = HYSCAN_CACHE (hyscan_cached_new (cache_server->size));
 
-  cache_server->rpc = urpc_server_create (cache_server->cache_uri, cache_server->n_threads, cache_server->n_clients,
+  cache_server->rpc = urpc_server_create (cache_server->uri, cache_server->n_threads, cache_server->n_clients,
                                           URPC_DEFAULT_SESSION_TIMEOUT, URPC_MAX_DATA_SIZE, URPC_DEFAULT_DATA_TIMEOUT);
   if (cache_server->rpc == NULL)
     return;
@@ -176,7 +176,7 @@ hyscan_cache_server_object_finalize (GObject *object)
 {
   HyScanCacheServer *cache_server = HYSCAN_CACHE_SERVER (object);
 
-  g_free (cache_server->cache_uri);
+  g_free (cache_server->uri);
 
   if (cache_server->rpc != NULL)
     urpc_server_destroy (cache_server->rpc);
@@ -340,12 +340,12 @@ exit:
 }
 
 HyScanCacheServer *
-hyscan_cache_server_new (const gchar *cache_uri,
-                         guint32      cache_size,
+hyscan_cache_server_new (const gchar *uri,
+                         guint32      size,
                          guint32      n_threads,
                          guint32      n_clients)
 {
-  return g_object_new (HYSCAN_TYPE_CACHE_SERVER, "cache-uri", cache_uri, "cache-size", cache_size,
+  return g_object_new (HYSCAN_TYPE_CACHE_SERVER, "uri", uri, "size", size,
                                                  "n-threads", n_threads, "n-clients", n_clients,
                                                  NULL);
 }
