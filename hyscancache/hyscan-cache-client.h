@@ -51,7 +51,7 @@ GType hyscan_cache_client_get_type( void );
  *
  */
 HYSCAN_CACHE_EXPORT
-HyScanCacheClient  *hyscan_cache_client_new            (gchar                 *uri);
+HyScanCacheClient  *hyscan_cache_client_new            (const gchar           *uri);
 
 G_END_DECLS
 

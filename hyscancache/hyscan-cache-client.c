@@ -44,13 +44,13 @@ struct _HyScanCacheClient
   uRpcClient          *rpc;
 };
 
-static void            hyscan_cache_client_interface_init          (HyScanCacheInterface *iface);
-static void            hyscan_cache_client_set_property            (GObject              *object,
-                                                                   guint                 prop_id,
-                                                                   const GValue         *value,
-                                                                   GParamSpec           *pspec);
-static void            hyscan_cache_client_object_constructed      (GObject              *object);
-static void            hyscan_cache_client_object_finalize         (GObject              *object);
+static void    hyscan_cache_client_interface_init      (HyScanCacheInterface *iface);
+static void    hyscan_cache_client_set_property        (GObject              *object,
+                                                        guint                 prop_id,
+                                                        const GValue         *value,
+                                                        GParamSpec           *pspec);
+static void    hyscan_cache_client_object_constructed  (GObject              *object);
+static void    hyscan_cache_client_object_finalize     (GObject              *object);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanCacheClient, hyscan_cache_client, G_TYPE_OBJECT,
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_CACHE, hyscan_cache_client_interface_init));
@@ -148,7 +148,7 @@ hyscan_cache_client_object_finalize (GObject *object)
 
 /* Функция создаёт новый объект HyScanCacheClient. */
 HyScanCacheClient *
-hyscan_cache_client_new (gchar *uri)
+hyscan_cache_client_new (const gchar *uri)
 {
   return g_object_new (HYSCAN_TYPE_CACHE_CLIENT, "uri", uri, NULL);
 }
