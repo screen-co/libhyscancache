@@ -5,6 +5,7 @@
 
 #define MAX_THREADS (32)
 #define MAX_SIZE    (1024 * 1024)
+#define MIN_SIZE    (4)
 
 gint cache_size = 0;
 gint n_patterns = 0;
@@ -37,10 +38,11 @@ data_writer (gpointer data)
   for (i = data_index; i < n_objects; i += 2)
     {
       gpointer data = patterns[i % n_patterns];
-      gint32 size = data_index ? big_size : small_size;
+      gint32 size1 = (data_index ? big_size : small_size);
+      gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
 
       g_snprintf (key, sizeof(key), "%09d", i);
-      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size, data, size))
+      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size1, data, size2))
         g_message ("data_writer: '%s' set error", key);
     }
 
@@ -53,10 +55,11 @@ data_writer (gpointer data)
     {
       gint key_id = 2 * g_random_int_range (0, n_objects / 2) + data_index;
       gpointer data = patterns[key_id % n_patterns];
-      gint32 size = data_index ? big_size : small_size;
+      gint32 size1 = (data_index ? big_size : small_size);
+      gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
 
       g_snprintf (key, sizeof (key), "%09d", key_id);
-      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size, data, size))
+      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size1, data, size2))
         g_message ("data_writer: '%s' set error", key);
 
       g_usleep (1);
@@ -113,10 +116,10 @@ data_reader (gpointer data)
       if (status)
         {
           // Проверка размера данных.
-          if (size1 != size2 || size1 != ((key_id % 2) ? big_size : small_size))
+          if (size1 < size2 || size1 != ((key_id % 2) ? big_size : small_size))
             {
-              g_message ("test thread %d: '%s' size mismatch %d != %d",
-                         thread_id, key, size1, key_id % 2 ? big_size : small_size);
+              g_message ("test thread %d: '%s' size mismatch %d, %d != %d",
+                         thread_id, key, size1, size2, key_id % 2 ? big_size : small_size);
             }
           // Проверка данных.
           else if (memcmp (buffers[thread_id], patterns[key_id % n_patterns], size1))
@@ -182,7 +185,7 @@ main (int argc, char **argv)
     args = g_strdupv (argv);
 #endif
 
-    context = g_option_context_new ("[uri]");
+    context = g_option_context_new ("");
     g_option_context_set_help_enabled (context, TRUE);
     g_option_context_add_main_entries (context, entries, NULL);
     g_option_context_set_ignore_unknown_options (context, FALSE);
@@ -208,13 +211,24 @@ main (int argc, char **argv)
     n_threads = MAX_THREADS;
   if (small_size > MAX_SIZE)
     small_size = MAX_SIZE;
+  if (small_size < MIN_SIZE)
+    small_size = MIN_SIZE;
+  if (small_size % 2 != 0)
+    small_size -= 1;
+
   if (big_size > MAX_SIZE)
     big_size = MAX_SIZE;
+  if (big_size < MIN_SIZE)
+    big_size = MIN_SIZE;
+  if (big_size % 2 != 0)
+    big_size -= 1;
 
   /* Создаём кэш. */
   if (rpc)
     {
       server = hyscan_cache_server_new ("local", cache_size, n_threads, n_threads + 2);
+      if (!hyscan_cache_server_start(server))
+        g_error ("can't start cache server");
       for (i = 0; i < n_threads + 2; i++)
         cache[i] = HYSCAN_CACHE (hyscan_cache_client_new ("local"));
     }

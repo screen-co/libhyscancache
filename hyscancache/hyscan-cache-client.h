@@ -45,13 +45,13 @@ GType hyscan_cache_client_get_type( void );
  *
  * Функция создаёт новый объект \link HyScanCacheClient \endlink.
  *
- * \param uri путь к серверу кэширования.
+ * \param server_name имя сервера системы кэширования.
  *
  * \return Указатель на объект \link HyScanCacheClient \endlink.
  *
  */
 HYSCAN_CACHE_EXPORT
-HyScanCacheClient  *hyscan_cache_client_new            (const gchar           *uri);
+HyScanCacheClient  *hyscan_cache_client_new            (const gchar           *server_name);
 
 G_END_DECLS
 

@@ -13,6 +13,8 @@
  *
  * Создать сервер системы кэширования можно с помощью функции #hyscan_cache_server_new.
  *
+ * После создания сервера его необходимо запустить функцией #hyscan_cache_server_start.
+ *
  */
 
 #ifndef __HYSCAN_CACHE_SERVER_H__
@@ -45,7 +47,7 @@ GType                  hyscan_cache_server_get_type            (void);
  *
  * Функция создаёт новый объект \link HyScanCacheServer \endlink.
  *
- * \param uri путь к серверу кэширования;
+ * \param name имя сервера кэширования;
  * \param size объём памяти для кэша, Мб;
  * \param n_threads число потоков сервера;
  * \param n_clients максимальное число клиентов сервера.
@@ -54,10 +56,22 @@ GType                  hyscan_cache_server_get_type            (void);
  *
  */
 HYSCAN_CACHE_EXPORT
-HyScanCacheServer     *hyscan_cache_server_new                 (const gchar           *uri,
+HyScanCacheServer     *hyscan_cache_server_new                 (const gchar           *name,
                                                                 guint32                size,
                                                                 guint32                n_threads,
                                                                 guint32                n_clients);
+
+/**
+ *
+ * Функция запускает сервер системы кэширования в работу.
+ *
+ * \param server указатель на объект \link HyScanCacheServer \endlink.
+ *
+ * \return TRUE - если сервер успешно запущен, FALSE - в случае ошибки.
+ *
+ */
+HYSCAN_CACHE_EXPORT
+gboolean               hyscan_cache_server_start               (HyScanCacheServer     *server);
 
 G_END_DECLS
 
