@@ -241,7 +241,7 @@ hyscan_cache_server_rpc_proc_get (guint32   session,
     hyscan_cache_server_set_error ("data");
 
   status = hyscan_cache_get2i (cache_server->cache, key, detail,
-                               data1, &size1, data1 + size1, &size2);
+                               data1, &size1, (guint8*)data1 + size1, &size2);
   if (status)
     {
       size = size1 + size2;

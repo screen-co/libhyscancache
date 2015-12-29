@@ -352,7 +352,7 @@ hyscan_cache_client_get2 (HyScanCache *cache,
         {
           if (size2 > *buffer2_size)
             goto exit;
-          memcpy (buffer2, value + size1, size2);
+          memcpy (buffer2, (guint8*)value + size1, size2);
           *buffer2_size = size2;
         }
 
