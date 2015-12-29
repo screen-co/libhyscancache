@@ -67,30 +67,29 @@ struct _HyScanCacheInterface
                                         guint64                key,
                                         guint64                detail,
                                         gpointer               data,
-                                        guint32                size);
+                                        gint32                 size);
 
   gboolean     (*set2)                 (HyScanCache           *cache,
                                         guint64                key,
                                         guint64                detail,
                                         gpointer               data1,
-                                        guint32                size1,
+                                        gint32                 size1,
                                         gpointer               data2,
-                                        guint32                size2);
+                                        gint32                 size2);
 
   gboolean     (*get)                  (HyScanCache           *cache,
                                         guint64                key,
                                         guint64                detail,
                                         gpointer               buffer,
-                                        guint32               *buffer_size);
+                                        gint32                *buffer_size);
 
   gboolean     (*get2)                 (HyScanCache           *cache,
                                         guint64                key,
                                         guint64                detail,
                                         gpointer               buffer1,
-                                        guint32               *buffer1_size,
+                                        gint32                *buffer1_size,
                                         gpointer               buffer2,
-                                        guint32               *buffer2_size );
-
+                                        gint32                *buffer2_size );
 };
 
 HYSCAN_CACHE_EXPORT
@@ -118,7 +117,7 @@ gboolean       hyscan_cache_set        (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
                                         gpointer               data,
-                                        guint32                size);
+                                        gint32                 size);
 
 /**
  *
@@ -144,9 +143,9 @@ gboolean       hyscan_cache_set2       (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
                                         gpointer               data1,
-                                        guint32                size1,
+                                        gint32                 size1,
                                         gpointer               data2,
-                                        guint32                size2);
+                                        gint32                 size2);
 
 /**
  *
@@ -172,9 +171,9 @@ gboolean       hyscan_cache_set2i      (HyScanCache           *cache,
                                         guint64                key,
                                         guint64                detail,
                                         gpointer               data1,
-                                        guint32                size1,
+                                        gint32                 size1,
                                         gpointer               data2,
-                                        guint32                size2);
+                                        gint32                 size2);
 
 /**
  *
@@ -206,7 +205,7 @@ gboolean       hyscan_cache_get        (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
                                         gpointer               buffer,
-                                        guint32               *buffer_size);
+                                        gint32                *buffer_size);
 
 /**
  *
@@ -234,9 +233,9 @@ gboolean       hyscan_cache_get2       (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
                                         gpointer               buffer1,
-                                        guint32               *buffer1_size,
+                                        gint32                *buffer1_size,
                                         gpointer               buffer2,
-                                        guint32               *buffer2_size);
+                                        gint32                *buffer2_size);
 
 /**
  *
@@ -264,9 +263,9 @@ gboolean       hyscan_cache_get2i      (HyScanCache           *cache,
                                         guint64                key,
                                         guint64                detail,
                                         gpointer               buffer1,
-                                        guint32               *buffer1_size,
+                                        gint32                *buffer1_size,
                                         gpointer               buffer2,
-                                        guint32               *buffer2_size);
+                                        gint32                *buffer2_size);
 
 G_END_DECLS
 

@@ -214,8 +214,8 @@ hyscan_cache_server_rpc_proc_get (guint32   session,
   guint64  key;
   guint64  detail;
   gpointer data1;
-  guint32  size1;
-  guint32  size2;
+  gint32  size1;
+  gint32  size2;
   guint32  size;
   gboolean status = FALSE;
 
@@ -226,12 +226,12 @@ hyscan_cache_server_rpc_proc_get (guint32   session,
     detail = 0;
 
   size = 0;
-  if (urpc_data_get_uint32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE1, &size1) == 0)
+  if (urpc_data_get_int32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE1, &size1) == 0)
     size += size1;
   else
     hyscan_cache_server_get_error ("size1");
 
-  if (urpc_data_get_uint32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE2, &size2) == 0)
+  if (urpc_data_get_int32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE2, &size2) == 0)
     size += size2;
   else
     size2 = 0;
@@ -248,11 +248,11 @@ hyscan_cache_server_rpc_proc_get (guint32   session,
       if (urpc_data_set (urpc_data, HYSCAN_CACHE_RPC_PARAM_DATA1, NULL, size) == NULL)
         hyscan_cache_server_set_error ("data-size");
 
-      if (urpc_data_set_uint32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE1, size1) != 0)
+      if (urpc_data_set_int32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE1, size1) != 0)
         hyscan_cache_server_set_error ("size1");
       if (size2 > 0 )
         {
-          if (urpc_data_set_uint32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE2, size2) != 0)
+          if (urpc_data_set_int32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE2, size2) != 0)
             hyscan_cache_server_set_error ("size2");
         }
       rpc_status = HYSCAN_CACHE_RPC_STATUS_OK;
@@ -275,7 +275,7 @@ hyscan_cache_server_rpc_proc_size (guint32   session,
 
   guint64  key;
   guint64  detail;
-  guint32  size;
+  gint32  size;
   gboolean status = FALSE;
 
   if (urpc_data_get_uint64 (urpc_data, HYSCAN_CACHE_RPC_PARAM_KEY, &key) != 0)

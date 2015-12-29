@@ -97,7 +97,7 @@ data_reader (gpointer data)
   // Работа с кэшем.
   for (i = 0; i < n_requests; i++)
     {
-      guint32 size1, size2;
+      gint32 size1, size2;
       gboolean status;
       gdouble req_time;
       gchar key[16];

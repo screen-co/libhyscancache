@@ -452,19 +452,22 @@ hyscan_cached_new (guint32 cache_size)
 }
 
 /* Функция добавляет или изменяет объект в кэше. */
-gboolean
+static gboolean
 hyscan_cached_set2 (HyScanCache *cache,
                     guint64      key,
                     guint64      detail,
                     gpointer     data1,
-                    guint32      size1,
+                    gint32       size1,
                     gpointer     data2,
-                    guint32      size2)
+                    gint32       size2)
 {
   HyScanCached *cached = HYSCAN_CACHED( cache );
 
   guint32 size = size1 + size2;
   ObjectInfo *object;
+
+  if (size1 < 0 || size2 < 0)
+    return FALSE;
 
   /* Если размер нового объекта слишком большой, не сохраняем его. */
   if (size > cached->cache_size / 10)
@@ -519,34 +522,34 @@ hyscan_cached_set2 (HyScanCache *cache,
 }
 
 /* Функция добавляет или изменяет объект в кэше. */
-gboolean
+static gboolean
 hyscan_cached_set (HyScanCache *cache,
                    guint64      key,
                    guint64      detail,
                    gpointer     data,
-                   guint32      size)
+                   gint32       size)
 {
   return hyscan_cached_set2 (cache, key, detail, data, size, NULL, 0);
 }
 
 /* Функция считывает объект из кэша. */
-gboolean
+static gboolean
 hyscan_cached_get2 (HyScanCache *cache,
                     guint64      key,
                     guint64      detail,
                     gpointer     buffer1,
-                    guint32     *buffer1_size,
+                    gint32      *buffer1_size,
                     gpointer     buffer2,
-                    guint32     *buffer2_size)
+                    gint32      *buffer2_size)
 {
   HyScanCached *cached = HYSCAN_CACHED (cache);
 
   ObjectInfo *object;
 
   /* Проверка буферов. */
-  if (buffer1 != NULL && *buffer1_size == 0)
+  if (buffer1 != NULL && *buffer1_size <= 0)
     return FALSE;
-  if (buffer2 != NULL && *buffer2_size == 0)
+  if (buffer2 != NULL && *buffer2_size <= 0)
     return FALSE;
   if (buffer1 == NULL && buffer2 != NULL)
     return FALSE;
@@ -609,12 +612,12 @@ hyscan_cached_get2 (HyScanCache *cache,
 }
 
 /* Функция считывает объект из кэша. */
-gboolean
+static gboolean
 hyscan_cached_get (HyScanCache *cache,
                    guint64      key,
                    guint64      detail,
                    gpointer     buffer,
-                   guint32     *buffer_size)
+                   gint32      *buffer_size)
 {
   return hyscan_cached_get2 (cache, key,detail, buffer, buffer_size, NULL, NULL);
 }
