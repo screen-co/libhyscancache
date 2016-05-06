@@ -146,8 +146,8 @@ data_reader (gpointer data)
 
   g_timer_destroy (timer);
 
-  g_message ("thread %d: hits: number = %d time = %.3lf ms/req, misses: number = %d time = %.3lf ms/req",
-             thread_id, hit, (1000.0 * hit_time) / hit, miss, (1000.0 * miss_time) / miss);
+  g_message ("thread %d: hits: number = %d time = %.3lf us/req, misses: number = %d time = %.3lf us/req",
+             thread_id, hit, (1000000.0 * hit_time) / hit, miss, (1000000.0 * miss_time) / miss);
 
   return NULL;
 }

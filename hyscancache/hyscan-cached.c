@@ -21,8 +21,7 @@
   #define MAX_CACHE_SIZE   131072
 #endif
 
-#define SMALL_OBJECT_SIZE  sizeof (gint64)     /* Размер объекта для которого значения
-                                                  сохраняются в метаданных объекта. */
+#define OBJECT_HEADER_SIZE offsetof (ObjectInfo, data)
 
 enum
 {
@@ -34,18 +33,15 @@ enum
 typedef struct _ObjectInfo ObjectInfo;
 struct _ObjectInfo
 {
-  guint64              hash;                   /* Хэш идентификатора объекта. */
-  guint64              detail;                 /* Хэш дополнительной информации объекта. */
-  gint32               size;                   /* Размер объекта. */
-  guint32              allocated;              /* Размер выделенной для объекта области памяти. */
-
-  union {
-    gpointer          *data;                   /* Указатель на данные объекта. */
-    gint64             value;                  /* Значение данных для объектов размером до 8 байт. */
-  };
-
   ObjectInfo          *prev;                   /* Указатель на предыдущий объект. */
   ObjectInfo          *next;                   /* Указатель на следующий объект. */
+
+  guint64              hash;                   /* Хэш идентификатора объекта. */
+  guint64              detail;                 /* Хэш дополнительной информации объекта. */
+
+  gint32               allocated;              /* Размер буфера. */
+  gint32               size;                   /* Размер объекта. */
+  gint8                data[];                 /* Данные объекта. */
 };
 
 /* Внутренние данные объекта. */
@@ -53,20 +49,16 @@ struct _HyScanCached
 {
   GObject              parent_instance;
 
-  guint64              cache_size;             /* Максимальный размер данных в кэше. */
-  guint64              used_size;              /* Текущий размер данных в кэше. */
-
-  guint64              max_n_objects;          /* Максимальное число объектов в кэше. */
-  guint64              n_objects;              /* Текущее число объектов в кэше. */
+  gint64               cache_size;             /* Максимальный размер данных в кэше. */
+  gint64               used_size;              /* Текущий размер данных в кэше. */
 
   GHashTable          *objects;                /* Таблица объектов кэша. */
-  GTrashStack         *free_objects;           /* "Куча" свободных структур с информацией об объекте. */
 
   ObjectInfo          *top_object;             /* Указатель на объект доступ к которому осуществлялся недавно. */
   ObjectInfo          *bottom_object;          /* Указатель на объект доступ к которому осуществлялся давно. */
 
-  GRWLock              cache_lock;             /* Блокировка доступа к кэшу. */
-  GRWLock              object_lock;            /* Блокировка доступа к объектам. */
+  GRWLock              data_lock;              /* Блокировка доступа к данным. */
+  GRWLock              list_lock;              /* Блокировка доступа к списку объектов. */
 };
 
 static void            hyscan_cached_interface_init               (HyScanCacheInterface *iface);
@@ -77,24 +69,23 @@ static void            hyscan_cached_set_property                 (GObject      
 static void            hyscan_cached_object_constructed           (GObject              *object);
 static void            hyscan_cached_object_finalize              (GObject              *object);
 
-static void            hyscan_cached_free_object                  (gpointer              data);
 static void            hyscan_cached_free_used                    (HyScanCached         *cached,
-                                                                   guint32               size);
+                                                                   gint32                size);
 
 static ObjectInfo     *hyscan_cached_rise_object                  (HyScanCached         *cache,
                                                                    guint64               key,
                                                                    guint64               detail,
                                                                    gpointer              data1,
-                                                                   guint32               size1,
+                                                                   gint32                size1,
                                                                    gpointer              data2,
-                                                                   guint32               size2);
+                                                                   gint32                size2);
 static ObjectInfo     *hyscan_cached_update_object                (HyScanCached         *cache,
                                                                    ObjectInfo           *object,
                                                                    guint64               detail,
                                                                    gpointer              data1,
-                                                                   guint32               size1,
+                                                                   gint32                size1,
                                                                    gpointer              data2,
-                                                                   guint32               size2);
+                                                                   gint32                size2);
 static void            hyscan_cached_drop_object                  (HyScanCached         *cache,
                                                                    ObjectInfo           *object);
 
@@ -161,24 +152,11 @@ hyscan_cached_object_constructed (GObject *object)
 {
   HyScanCached *cached = HYSCAN_CACHED (object);
 
-  guint64 i;
-
-  /* Максимально возможное число объектов в кэше. */
-  cached->max_n_objects = cached->cache_size / 8192;
-
-  /* Выделяем память для структур с информацией об объектах. */
-  for (i = 0; i < cached->max_n_objects; i++)
-    {
-      ObjectInfo *object = g_slice_new0( ObjectInfo );
-      g_trash_stack_push (&cached->free_objects, object);
-    }
+  g_rw_lock_init (&cached->data_lock);
+  g_rw_lock_init (&cached->list_lock);
 
   /* Таблица объектов кэша. */
-  cached->objects = g_hash_table_new_full (g_int64_hash, g_int64_equal, NULL, hyscan_cached_free_object);
-
-  /* Блокировки. */
-  g_rw_lock_init (&cached->cache_lock);
-  g_rw_lock_init (&cached->object_lock);
+  cached->objects = g_hash_table_new_full (g_int64_hash, g_int64_equal, NULL, g_free);
 }
 
 static void
@@ -186,69 +164,26 @@ hyscan_cached_object_finalize (GObject *object)
 {
   HyScanCached *cached = HYSCAN_CACHED (object);
 
-  ObjectInfo *cache_object;
-
-  /* Блокировки. */
-  g_rw_lock_clear (&cached->cache_lock);
-  g_rw_lock_clear (&cached->object_lock);
-
-  /* Освобождаем память структур используемых объектов. */
   g_hash_table_unref (cached->objects);
 
-  /* Освобождаем память свободных структур с информацией об объекте. */
-  while ((cache_object = g_trash_stack_pop (&cached->free_objects)))
-    g_slice_free( ObjectInfo, cache_object);
+  g_rw_lock_clear (&cached->list_lock);
+  g_rw_lock_clear (&cached->data_lock);
 
   G_OBJECT_CLASS (hyscan_cached_parent_class)->finalize (object);
-}
-
-/* Функция освобождает память структуры используемого объекта. */
-static void
-hyscan_cached_free_object (gpointer data)
-{
-  ObjectInfo *object = data;
-  if (object->allocated > 0)
-    g_free( object->data );
-  g_slice_free (ObjectInfo, object);
 }
 
 /* Функция освобождает память в кэше для размещения нового объекта. */
 static void
 hyscan_cached_free_used (HyScanCached *cached,
-                         guint32        size)
+                         gint32        size)
 {
   ObjectInfo *object = cached->bottom_object;
 
-  guint32 can_free = 0;
-
   /* Удаляем объекты пока не наберём достаточного объёма свободной памяти. */
-  while (object && (cached->cache_size - cached->used_size < size || cached->n_objects == cached->max_n_objects))
+  while (object != NULL && cached->cache_size < (cached->used_size + size))
     {
-      /* Если объем памяти "маленьких" объектов превысил два необходимых нам размера, удаляем их. */
-      if (can_free > 2 * size)
-        {
-          object = object->next;
-          while (object)
-            {
-              ObjectInfo *next_object = object->next;
-              hyscan_cached_drop_object (cached, object);
-              object = next_object;
-            }
-          break;
-        }
-
-      /* В первую очередь удаляем объекты размером не менее 20% от необходимого размера. */
-      if (object->allocated >= size / 5)
-        {
-          hyscan_cached_drop_object (cached, object);
-          object = cached->bottom_object;
-        }
-      /* Объекты меньшего размера не трогаем, но запоминаем сколько можно высвободить памяти. */
-      else
-        {
-          can_free += object->allocated;
-          object = object->prev;
-        }
+      hyscan_cached_drop_object (cached, object);
+      object = cached->bottom_object;
     }
 }
 
@@ -259,18 +194,15 @@ hyscan_cached_rise_object (HyScanCached *cached,
                            guint64       key,
                            guint64       detail,
                            gpointer      data1,
-                           guint32       size1,
+                           gint32        size1,
                            gpointer      data2,
-                           guint32       size2)
+                           gint32        size2)
 {
-  ObjectInfo *object = g_trash_stack_pop (&cached->free_objects);
-
-  guint32 size = size1 + size2;
-
-  if (object == NULL)
-    return NULL;
+  ObjectInfo *object;
+  gint32 size = size1 + size2;
 
   /* Инициализация. */
+  object = g_malloc (OBJECT_HEADER_SIZE + size);
   object->next = NULL;
   object->prev = NULL;
 
@@ -279,28 +211,12 @@ hyscan_cached_rise_object (HyScanCached *cached,
   object->detail = detail;
   object->size = size;
 
-  /* Данные объекта большого размера. */
-  if (size > SMALL_OBJECT_SIZE)
-    {
-      object->data = g_malloc (size);
-      object->allocated = size;
-      cached->used_size += size;
-      memcpy (object->data, data1, size1);
-      if (size2 > 0)
-        memcpy ((gint8*) object->data + size1, data2, size2);
-    }
-
-  /* Данные объекта малого размера. */
-  else
-    {
-      object->allocated = 0;
-      object->value = 0;
-      memcpy (&object->value, data1, size1);
-      if (size2 > 0)
-        memcpy (((gint8*) &object->value) + size1, data2, size2);
-    }
-
-  cached->n_objects += 1;
+  /* Данные объекта. */
+  object->allocated = size;
+  cached->used_size += (OBJECT_HEADER_SIZE + size);
+  memcpy (object->data, data1, size1);
+  if (size2 > 0)
+    memcpy ((gint8*) object->data + size1, data2, size2);
 
   return object;
 }
@@ -311,31 +227,23 @@ hyscan_cached_update_object (HyScanCached *cached,
                              ObjectInfo   *object,
                              guint64       detail,
                              gpointer      data1,
-                             guint32       size1,
+                             gint32        size1,
                              gpointer      data2,
-                             guint32       size2)
+                             gint32        size2)
 {
-  guint32 size = size1 + size2;
+  gint32 size = size1 + size2;
 
   /* Если текущий размер объекта меньше нового размера или больше нового на 5%, выделяем память заново. */
-  if (size <= SMALL_OBJECT_SIZE || object->allocated < size
-      || ((gdouble) size / (gdouble) object->allocated) < 0.95)
+  if (object->allocated < size || ((gdouble) size / (gdouble) object->allocated) < 0.95)
     {
-      if (object->allocated > 0)
-        {
-          g_free (object->data);
-          cached->used_size -= object->allocated;
-        }
-      if (size > SMALL_OBJECT_SIZE)
-        {
-          object->data = g_malloc (size);
-          object->allocated = size;
-          cached->used_size += size;
-        }
-      else
-        {
-        object->value = 0;
-        }
+      g_hash_table_steal (cached->objects, &object->hash);
+      object = g_realloc (object, sizeof (ObjectInfo));
+      object = g_realloc (object, sizeof (ObjectInfo) + size);
+      g_hash_table_insert (cached->objects, &object->hash, object);
+
+      cached->used_size -= (OBJECT_HEADER_SIZE + object->allocated);
+      object->allocated = size;
+      cached->used_size += (OBJECT_HEADER_SIZE + size);
     }
 
   /* Новый размер объекта. */
@@ -343,18 +251,9 @@ hyscan_cached_update_object (HyScanCached *cached,
   object->detail = detail;
 
   /* Данные объекта. */
-  if (size > SMALL_OBJECT_SIZE)
-    {
-      memcpy (object->data, data1, size1);
-      if (size2 > 0)
-        memcpy ((gint8*) object->data + size1, data2, size2);
-    }
-  else
-    {
-      memcpy (&object->value, data1, size1);
-      if (size2 > 0)
-        memcpy (((gint8*) &object->value) + size1, data2, size2);
-    }
+  memcpy (object->data, data1, size1);
+  if (size2 > 0)
+    memcpy ((gint8*) object->data + size1, data2, size2);
 
   return object;
 }
@@ -366,15 +265,8 @@ hyscan_cached_drop_object (HyScanCached *cached,
 {
   hyscan_cached_remove_object_from_used (cached, object);
 
-  cached->n_objects -= 1;
-  if (object->allocated)
-    {
-      g_free (object->data);
-      cached->used_size -= object->allocated;
-    }
-
-  g_hash_table_steal (cached->objects, &object->hash);
-  g_trash_stack_push (&cached->free_objects, object);
+  cached->used_size -= (OBJECT_HEADER_SIZE + object->allocated);
+  g_hash_table_remove (cached->objects, &object->hash);
 }
 
 /* Функция удаляет объект из списка используемых. */
@@ -417,14 +309,14 @@ static void
 hyscan_cached_place_object_on_top_of_used (HyScanCached *cached,
                                            ObjectInfo   *object)
 {
-  g_rw_lock_writer_lock (&cached->object_lock);
+  g_rw_lock_writer_lock (&cached->list_lock);
 
   /* Первый объект в кэше. */
   if (cached->top_object == NULL && cached->bottom_object == NULL)
     {
       cached->top_object = object;
       cached->bottom_object = object;
-      g_rw_lock_writer_unlock (&cached->object_lock);
+      g_rw_lock_writer_unlock (&cached->list_lock);
       return;
     }
 
@@ -440,8 +332,7 @@ hyscan_cached_place_object_on_top_of_used (HyScanCached *cached,
 
   /* Изменяем указатель начала цепочки. */
   cached->top_object = object;
-
-  g_rw_lock_writer_unlock (&cached->object_lock);
+  g_rw_lock_writer_unlock (&cached->list_lock);
 }
 
 /* Функция создаёт новый объект HyScanCached. */
@@ -463,7 +354,7 @@ hyscan_cached_set2 (HyScanCache *cache,
 {
   HyScanCached *cached = HYSCAN_CACHED( cache );
 
-  guint32 size = size1 + size2;
+  gint32 size = size1 + size2;
   ObjectInfo *object;
 
   if (size1 < 0 || size2 < 0)
@@ -473,7 +364,7 @@ hyscan_cached_set2 (HyScanCache *cache,
   if (size > cached->cache_size / 10)
     return FALSE;
 
-  g_rw_lock_writer_lock (&cached->cache_lock);
+  g_rw_lock_writer_lock (&cached->data_lock);
 
   /* Ищем объект в кэше. */
   object = g_hash_table_lookup (cached->objects, &key);
@@ -483,22 +374,16 @@ hyscan_cached_set2 (HyScanCache *cache,
     {
       if (object != NULL)
         hyscan_cached_drop_object (cached, object);
-      g_rw_lock_writer_unlock (&cached->cache_lock);
+      g_rw_lock_writer_unlock (&cached->data_lock);
       return TRUE;
     }
 
-  /* Очищаем кэш если ... */
-
-  /* ... достигнут лимит используемой памяти. */
-  if ((size > SMALL_OBJECT_SIZE) && (cached->used_size + size > cached->cache_size))
+  /* Очищаем кэш если достигнут лимит используемой памяти. */
+  if (cached->used_size + OBJECT_HEADER_SIZE + size > cached->cache_size)
     {
-      hyscan_cached_free_used (cached, size);
+      hyscan_cached_free_used (cached, OBJECT_HEADER_SIZE + size);
       object = g_hash_table_lookup (cached->objects, &key);
     }
-
-  /* ... достигнут лимит числа объектов. */
-  if (object == NULL && cached->n_objects == cached->max_n_objects)
-    hyscan_cached_free_used (cached, 0);
 
   /* Если объект уже был в кэше, изменяем его. */
   if (object != NULL)
@@ -516,7 +401,7 @@ hyscan_cached_set2 (HyScanCache *cache,
   /* Перемещаем объект в начало списка используемых. */
   hyscan_cached_place_object_on_top_of_used (cached, object);
 
-  g_rw_lock_writer_unlock (&cached->cache_lock);
+  g_rw_lock_writer_unlock (&cached->data_lock);
 
   return TRUE;
 }
@@ -554,7 +439,7 @@ hyscan_cached_get2 (HyScanCache *cache,
   if (buffer1 == NULL && buffer2 != NULL)
     return FALSE;
 
-  g_rw_lock_reader_lock (&cached->cache_lock);
+  g_rw_lock_reader_lock (&cached->data_lock);
 
   /* Ищем объект в кэше. */
   object = g_hash_table_lookup (cached->objects, &key);
@@ -562,14 +447,14 @@ hyscan_cached_get2 (HyScanCache *cache,
   /* Объекта в кэше нет. */
   if (object == NULL)
     {
-      g_rw_lock_reader_unlock (&cached->cache_lock);
+      g_rw_lock_reader_unlock (&cached->data_lock);
       return FALSE;
     }
 
   /* Не совпадает дополнительная информация. */
   if (detail != 0 && object->detail != detail)
     {
-      g_rw_lock_reader_unlock (&cached->cache_lock);
+      g_rw_lock_reader_unlock (&cached->data_lock);
       return FALSE;
     }
 
@@ -580,10 +465,7 @@ hyscan_cached_get2 (HyScanCache *cache,
   if (buffer1 != NULL)
     {
       *buffer1_size = *buffer1_size < object->size ? *buffer1_size : object->size;
-      if (object->size > SMALL_OBJECT_SIZE)
-        memcpy (buffer1, object->data, *buffer1_size);
-      else
-        memcpy (buffer1, &object->value, *buffer1_size);
+      memcpy (buffer1, object->data, *buffer1_size);
     }
 
   /* Копируем вторую часть данных объекта. */
@@ -591,10 +473,7 @@ hyscan_cached_get2 (HyScanCache *cache,
     {
       *buffer2_size = *buffer2_size < (object->size - *buffer1_size) ?
                         *buffer2_size : (object->size - *buffer1_size);
-      if (object->size > SMALL_OBJECT_SIZE)
-        memcpy (buffer2, (gint8*) object->data + *buffer1_size, *buffer2_size);
-      else
-        memcpy (buffer2, ((gint8*) &object->value) + *buffer1_size, *buffer2_size);
+      memcpy (buffer2, (gint8*) object->data + *buffer1_size, *buffer2_size);
     }
 
   /* Размер объекта в кэше. */
@@ -606,7 +485,7 @@ hyscan_cached_get2 (HyScanCache *cache,
         *buffer2_size = 0;
     }
 
-  g_rw_lock_reader_unlock (&cached->cache_lock);
+  g_rw_lock_reader_unlock (&cached->data_lock);
 
   return TRUE;
 }
