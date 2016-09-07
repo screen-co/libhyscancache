@@ -21,7 +21,7 @@
 #define __HYSCAN_CACHE_SERVER_H__
 
 #include <glib-object.h>
-#include <hyscan-cache-exports.h>
+#include <hyscan-api.h>
 
 G_BEGIN_DECLS
 
@@ -40,7 +40,7 @@ struct _HyScanCacheServerClass
   GObjectClass parent_class;
 };
 
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 GType                  hyscan_cache_server_get_type            (void);
 
 /**
@@ -55,7 +55,7 @@ GType                  hyscan_cache_server_get_type            (void);
  * \return казатель на объект \link HyScanCacheServer \endlink.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 HyScanCacheServer     *hyscan_cache_server_new                 (const gchar           *name,
                                                                 guint32                size,
                                                                 guint32                n_threads,
@@ -70,7 +70,7 @@ HyScanCacheServer     *hyscan_cache_server_new                 (const gchar     
  * \return TRUE - если сервер успешно запущен, FALSE - в случае ошибки.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 gboolean               hyscan_cache_server_start               (HyScanCacheServer     *server);
 
 G_END_DECLS

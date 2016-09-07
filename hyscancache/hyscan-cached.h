@@ -46,7 +46,7 @@ struct _HyScanCachedClass
   GObjectClass parent_class;
 };
 
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 GType hyscan_cached_get_type( void );
 
 /**
@@ -58,7 +58,7 @@ GType hyscan_cached_get_type( void );
  * \return Указатель на объект \link HyScanCached \endlink.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 HyScanCached  *hyscan_cached_new       (guint32                cache_size);
 
 G_END_DECLS

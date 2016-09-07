@@ -38,7 +38,7 @@ struct _HyScanCacheClientClass
   GObjectClass parent_class;
 };
 
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 GType hyscan_cache_client_get_type( void );
 
 /**
@@ -50,7 +50,7 @@ GType hyscan_cache_client_get_type( void );
  * \return Указатель на объект \link HyScanCacheClient \endlink.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 HyScanCacheClient  *hyscan_cache_client_new            (const gchar           *server_name);
 
 G_END_DECLS

@@ -7,4 +7,6 @@ add_library (hyscancache SHARED
              hyscan-hash.cc
              farmhash.cc)
 
-target_link_libraries (hyscancache ${GLIB2_LIBRARIES} ${URPC_LIBRARIES})
+target_link_libraries (hyscancache ${GLIB2_LIBRARIES} ${ADDON_LIBRARIES})
+
+set_target_properties (hyscancache PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")

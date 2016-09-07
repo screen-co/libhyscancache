@@ -46,7 +46,7 @@
 #define __HYSCAN_CACHE_H__
 
 #include <glib-object.h>
-#include <hyscan-cache-exports.h>
+#include <hyscan-api.h>
 
 G_BEGIN_DECLS
 
@@ -92,7 +92,7 @@ struct _HyScanCacheInterface
                                         gint32                *buffer2_size );
 };
 
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 GType          hyscan_cache_get_type   (void);
 
 /**
@@ -112,7 +112,7 @@ GType          hyscan_cache_get_type   (void);
  * \return TRUE - если данные успешно сохранены в кэше, FALSE - в случае ошибки.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 gboolean       hyscan_cache_set        (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
@@ -138,7 +138,7 @@ gboolean       hyscan_cache_set        (HyScanCache           *cache,
  * \return TRUE - если данные успешно сохранены в кэше, FALSE - в случае ошибки.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 gboolean       hyscan_cache_set2       (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
@@ -166,7 +166,7 @@ gboolean       hyscan_cache_set2       (HyScanCache           *cache,
  * \return TRUE - если данные успешно сохранены в кэше, FALSE - в случае ошибки.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 gboolean       hyscan_cache_set2i      (HyScanCache           *cache,
                                         guint64                key,
                                         guint64                detail,
@@ -200,7 +200,7 @@ gboolean       hyscan_cache_set2i      (HyScanCache           *cache,
  * \return TRUE - если данные найдены в кэше и считаны, FALSE - в случае ошибки.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 gboolean       hyscan_cache_get        (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
@@ -228,7 +228,7 @@ gboolean       hyscan_cache_get        (HyScanCache           *cache,
  * \return TRUE - если данные найдены в кэше и считаны, FALSE - в случае ошибки.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 gboolean       hyscan_cache_get2       (HyScanCache           *cache,
                                         const gchar           *key,
                                         const gchar           *detail,
@@ -258,7 +258,7 @@ gboolean       hyscan_cache_get2       (HyScanCache           *cache,
  * \return TRUE - если данные найдены в кэше и считаны, FALSE - в случае ошибки.
  *
  */
-HYSCAN_CACHE_EXPORT
+HYSCAN_API
 gboolean       hyscan_cache_get2i      (HyScanCache           *cache,
                                         guint64                key,
                                         guint64                detail,
