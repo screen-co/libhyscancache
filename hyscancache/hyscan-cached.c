@@ -107,8 +107,9 @@ hyscan_cached_class_init (HyScanCachedClass *klass)
   object_class->finalize = hyscan_cached_object_finalize;
 
   g_object_class_install_property (object_class, PROP_CACHE_SIZE,
-                                   g_param_spec_uint ("cache-size", "Cache size", "Cache size, Mb", 0, G_MAXUINT32, 256,
-                                                      G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_param_spec_uint ("cache-size", "Cache size", "Cache size, Mb",
+                       MIN_CACHE_SIZE, MAX_CACHE_SIZE, MIN_CACHE_SIZE,
+                       G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -128,16 +129,6 @@ hyscan_cached_set_property (GObject      *object,
     {
     case PROP_CACHE_SIZE:
       cached->cache_size = g_value_get_uint (value);
-      if (cached->cache_size < MIN_CACHE_SIZE)
-        {
-          g_warning ("hyscan_cached: increasing cache size to the default minimum of %d Mb", MIN_CACHE_SIZE);
-          cached->cache_size = MIN_CACHE_SIZE;
-        }
-      if (cached->cache_size > MAX_CACHE_SIZE)
-        {
-          g_warning ("hyscan_cached: truncating cache size to the default maximum of %d Mb", MAX_CACHE_SIZE);
-          cached->cache_size = MAX_CACHE_SIZE;
-        }
       cached->cache_size *= 1024 * 1024;
       break;
 
@@ -237,8 +228,7 @@ hyscan_cached_update_object (HyScanCached *cached,
   if (object->allocated < size || ((gdouble) size / (gdouble) object->allocated) < 0.95)
     {
       g_hash_table_steal (cached->objects, &object->hash);
-      object = g_realloc (object, sizeof (ObjectInfo));
-      object = g_realloc (object, sizeof (ObjectInfo) + size);
+      object = g_realloc (object, OBJECT_HEADER_SIZE + size);
       g_hash_table_insert (cached->objects, &object->hash, object);
 
       cached->used_size -= (OBJECT_HEADER_SIZE + object->allocated);
@@ -274,6 +264,14 @@ static void
 hyscan_cached_remove_object_from_used (HyScanCached *cached,
                                        ObjectInfo   *object)
 {
+  /* Единственный объект в списке */
+  if ((cached->top_object == cached->bottom_object) && (cached->top_object == object))
+    {
+      cached->top_object = NULL;
+      cached->bottom_object = NULL;
+      return;
+    }
+
   /* Объект не в списке. */
   if (object->prev == NULL && object->next == NULL)
     return;
@@ -311,27 +309,24 @@ hyscan_cached_place_object_on_top_of_used (HyScanCached *cached,
 {
   g_rw_lock_writer_lock (&cached->list_lock);
 
-  /* Первый объект в кэше. */
-  if (cached->top_object == NULL && cached->bottom_object == NULL)
-    {
-      cached->top_object = object;
-      cached->bottom_object = object;
-      g_rw_lock_writer_unlock (&cached->list_lock);
-      return;
-    }
-
   /* "Вынимаем" объект из цепочки используемых. */
   hyscan_cached_remove_object_from_used (cached, object);
 
+  /* Первый объект в кэше. */
+  if ((cached->top_object == NULL) && (cached->bottom_object == NULL))
+    {
+      cached->top_object = object;
+      cached->bottom_object = object;
+    }
+
   /* "Вставляем" перед первым объектом в цепочке. */
-  if (cached->top_object != NULL)
+  else
     {
       cached->top_object->prev = object;
       object->next = cached->top_object;
+      cached->top_object = object;
     }
 
-  /* Изменяем указатель начала цепочки. */
-  cached->top_object = object;
   g_rw_lock_writer_unlock (&cached->list_lock);
 }
 
@@ -388,7 +383,8 @@ hyscan_cached_set2 (HyScanCache *cache,
   /* Если объект уже был в кэше, изменяем его. */
   if (object != NULL)
     {
-    object = hyscan_cached_update_object (cached, object, detail, data1, size1, data2, size2);
+      hyscan_cached_remove_object_from_used (cached, object);
+      object = hyscan_cached_update_object (cached, object, detail, data1, size1, data2, size2);
     }
 
   /* Если объекта в кэше не было, создаём новый и добавляем в кэш. */

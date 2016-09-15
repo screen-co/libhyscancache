@@ -7,14 +7,15 @@
 #define MAX_SIZE    (1024 * 1024)
 #define MIN_SIZE    (4)
 
+gdouble duration = 10.0;
 gint cache_size = 0;
 gint n_patterns = 0;
 gint n_threads = 0;
-gint n_requests = 0;
 gint n_objects = 0;
 gint small_size = 0;
 gint big_size = 0;
 gboolean rpc = FALSE;
+gboolean preload = FALSE;
 gboolean update = FALSE;
 
 HyScanCache *cache[MAX_THREADS+2];
@@ -24,7 +25,9 @@ gint pattern_size;
 guint8 **patterns;
 guint8 **buffers;
 
-volatile gint start = 0;
+gint started_threads = 0;
+gint start = 0;
+gint stop = 0;
 
 /* Запись данных в кэш. */
 gpointer
@@ -34,24 +37,33 @@ data_writer (gpointer data)
   gchar key[16];
   gint i;
 
-  /* Загрузка кэша до начала тестирования. */
-  for (i = data_index; i < n_objects; i += 2)
-    {
-      gpointer data = patterns[i % n_patterns];
-      gint32 size1 = (data_index ? big_size : small_size);
-      gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
+  /* Сигнализация запуска потока. */
+  g_atomic_int_inc (&started_threads);
+  g_message ("starting %s data writer thread", data_index ? "big" : "small");
 
-      g_snprintf (key, sizeof(key), "%09d", i);
-      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size1, data, size2))
-        g_message ("data_writer: '%s' set error", key);
+  /* Загрузка кэша до начала тестирования. */
+  if (preload)
+    {
+      g_message ("preloading %s data", data_index ? "big" : "small");
+      for (i = data_index; i < n_objects; i += 2)
+        {
+          gpointer data = patterns[i % n_patterns];
+          gint32 size1 = (data_index ? big_size : small_size);
+          gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
+
+          g_snprintf (key, sizeof(key), "%09d", i);
+          if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size1, data, size2))
+            g_message ("data_writer: '%s' set error", key);
+        }
     }
 
   /* Сигнализация о завершении загрузки кэша. */
   g_atomic_int_inc (&start);
-  while (g_atomic_int_get (&start) != 3);
+  while (g_atomic_int_get (&start) != 3)
+    g_usleep (1000);
 
   /* Обновление кэша. */
-  while (update && g_atomic_int_get (&start) == 3)
+  while (update && g_atomic_int_get (&stop) == 0)
     {
       gint key_id = 2 * g_random_int_range (0, n_objects / 2) + data_index;
       gpointer data = patterns[key_id % n_patterns];
@@ -77,25 +89,24 @@ data_reader (gpointer data)
   gint thread_id;
 
   GTimer *timer = g_timer_new ();
-  gdouble hit_time, miss_time;
-  gint hit, miss;
-
-  gint i;
+  gdouble hit_time = 0.0;
+  gdouble miss_time = 0.0;
+  guint hit = 0;
+  guint miss = 0;;
 
   /* Идентификатор потока. */
   thread_id = g_atomic_int_add (&running_threads, 1);
 
+  /* Сигнализация запуска потока. */
+  g_atomic_int_inc (&started_threads);
+  g_message ("starting reader thread %d", thread_id);
+
   /* Ожидаем запуска всех потоков и завершения загрузки кэша. */
-  while (g_atomic_int_get (&start) != 3);
-  g_message ("starting thread %d", thread_id);
+  while (g_atomic_int_get (&start) != 3)
+    g_usleep (1000);
 
-  hit_time = 0.0;
-  miss_time = 0.0;
-  hit = 0;
-  miss = 0;
-
-  // Работа с кэшем.
-  for (i = 0; i < n_requests; i++)
+  /* Работа с кэшем. */
+  while (g_atomic_int_get (&stop) == 0)
     {
       gint32 size1, size2;
       gboolean status;
@@ -115,20 +126,20 @@ data_reader (gpointer data)
 
       if (status)
         {
-          // Проверка размера данных.
+          /* Проверка размера данных. */
           if (size1 < size2 || size1 != ((key_id % 2) ? big_size : small_size))
             {
-              g_message ("test thread %d: '%s' size mismatch %d, %d != %d",
-                         thread_id, key, size1, size2, key_id % 2 ? big_size : small_size);
+              g_error ("test thread %d: '%s' size mismatch %d, %d != %d",
+                       thread_id, key, size1, size2, key_id % 2 ? big_size : small_size);
             }
-          // Проверка данных.
+          /* Проверка данных. */
           else if (memcmp (buffers[thread_id], patterns[key_id % n_patterns], size1))
             {
-              g_message ("test thread %d: '%s' data1 mismatch", thread_id, key);
+              g_error ("test thread %d: '%s' data1 mismatch", thread_id, key);
             }
           else if (memcmp (buffers[thread_id] + size1, patterns[key_id % n_patterns], size2))
             {
-              g_message ("test thread %d: '%s' data2 mismatch", thread_id, key);
+              g_error ("test thread %d: '%s' data2 mismatch", thread_id, key);
             }
           else
             {
@@ -158,6 +169,7 @@ main (int argc, char **argv)
   GThread *small_data_writer_thread;
   GThread *big_data_writer_thread;
   GThread **threads;
+  GTimer *timer;
 
   gint i, j;
 
@@ -168,12 +180,13 @@ main (int argc, char **argv)
     GOptionContext *context;
     GOptionEntry entries[] =
       {
+        { "duration", 'd', 0, G_OPTION_ARG_DOUBLE, &duration, "Test duration, seconds", NULL },
         { "cache-size", 'm', 0, G_OPTION_ARG_INT, &cache_size, "Cache size, Mb", NULL },
         { "rpc", 'c', 0, G_OPTION_ARG_NONE, &rpc, "Use rpc interface", NULL },
+        { "preload", 'l', 0, G_OPTION_ARG_NONE, &preload, "Preload cache with data", NULL },
         { "patterns", 'p', 0, G_OPTION_ARG_INT, &n_patterns, "Number of testing patterns", NULL },
         { "threads", 't', 0, G_OPTION_ARG_INT, &n_threads, "Number of working threads", NULL },
         { "updates", 'u', 0, G_OPTION_ARG_NONE, &update, "Update cache data during test", NULL },
-        { "requests", 'r', 0, G_OPTION_ARG_INT, &n_requests, "Number of requests", NULL },
         { "objects", 'o', 0, G_OPTION_ARG_INT, &n_objects, "Number of unique objects", NULL },
         { "small-size", 's', 0, G_OPTION_ARG_INT, &small_size, "Maximum small objects size, bytes", NULL },
         { "big-size", 'b', 0, G_OPTION_ARG_INT, &big_size, "Maximum big objects size, bytes", NULL },
@@ -195,7 +208,9 @@ main (int argc, char **argv)
         return -1;
       }
 
-    if (!cache_size || !n_patterns || !n_threads || !n_requests || !n_objects || !small_size || !big_size)
+    if ((duration < 1.0) || (cache_size == 0) ||
+        (n_patterns == 0) || (n_threads == 0) || (n_objects == 0) ||
+        (small_size == 0) || (big_size == 0))
       {
         g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
         return 0;
@@ -220,6 +235,7 @@ main (int argc, char **argv)
     big_size = MAX_SIZE;
   if (big_size < MIN_SIZE)
     big_size = MIN_SIZE;
+
   if (big_size % 2 != 0)
     big_size -= 1;
 
@@ -240,6 +256,7 @@ main (int argc, char **argv)
     }
 
   /* Шаблоны тестирования. */
+  g_message ("creating test patterns");
   pattern_size = big_size > small_size ? big_size : small_size;
   patterns = g_malloc (n_patterns * sizeof(gint8*));
   for (i = 0; i < n_patterns; i++)
@@ -258,24 +275,39 @@ main (int argc, char **argv)
   small_data_writer_thread = g_thread_new ("test-thread", data_writer, GINT_TO_POINTER( 0 ));
   big_data_writer_thread = g_thread_new ("test-thread", data_writer, GINT_TO_POINTER( 1 ));
 
-  // Ожидаем завершение загрузки данных в кэш.
-  while (g_atomic_int_get (&start) != 2);
-
-  // Потоки тестирования.
+  /* Потоки тестирования. */
   threads = g_malloc (n_threads * sizeof(GThread*));
   for (i = 0; i < n_threads; i++)
     threads[i] = g_thread_new ("test-thread", data_reader, NULL);
 
-  // Запуск тестирования.
-  g_message( "start...");
+  /* Ожидаем запуска всех потоков. */
+  while (g_atomic_int_get (&started_threads) != n_threads + 2)
+    g_usleep (1000);
+
+  /* Ожидаем завершение загрузки данных в кэш. */
+  while (g_atomic_int_get (&start) != 2)
+    g_usleep (1000);
+
+  /* Запуск тестирования. */
+  g_message ("begin testing");
   g_atomic_int_inc (&start);
 
-  // Ожидаем завершения работы потоков.
+  /* Тестирование в течение указанного времени. */
+  timer = g_timer_new ();
+  while (g_timer_elapsed (timer, NULL) < duration)
+    g_usleep (10000);
+
+  /* Сигнализация о завершении теста. */
+  g_atomic_int_set (&stop, 1);
+
+  g_timer_destroy (timer);
+
+  /* Ожидаем завершения работы потоков. */
   for (i = 0; i < n_threads; i++)
     g_thread_join (threads[i]);
   g_free (threads);
 
-  // Завершаем потоки обновления данных.
+  /* Завершаем потоки обновления данных. */
   g_atomic_int_add (&start, -1);
 
   g_thread_join (small_data_writer_thread);
