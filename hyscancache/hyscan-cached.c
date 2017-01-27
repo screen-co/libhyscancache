@@ -39,8 +39,8 @@ struct _ObjectInfo
   guint64              hash;                   /* Хэш идентификатора объекта. */
   guint64              detail;                 /* Хэш дополнительной информации объекта. */
 
-  gint32               allocated;              /* Размер буфера. */
-  gint32               size;                   /* Размер объекта. */
+  guint32              allocated;              /* Размер буфера. */
+  guint32              size;                   /* Размер объекта. */
   gint8                data[];                 /* Данные объекта. */
 };
 
@@ -49,8 +49,8 @@ struct _HyScanCached
 {
   GObject              parent_instance;
 
-  gint64               cache_size;             /* Максимальный размер данных в кэше. */
-  gint64               used_size;              /* Текущий размер данных в кэше. */
+  guint64              cache_size;             /* Максимальный размер данных в кэше. */
+  guint64              used_size;              /* Текущий размер данных в кэше. */
 
   GHashTable          *objects;                /* Таблица объектов кэша. */
 
@@ -339,21 +339,18 @@ hyscan_cached_new (guint32 cache_size)
 
 /* Функция добавляет или изменяет объект в кэше. */
 static gboolean
-hyscan_cached_set2 (HyScanCache *cache,
-                    guint64      key,
-                    guint64      detail,
-                    gpointer     data1,
-                    gint32       size1,
-                    gpointer     data2,
-                    gint32       size2)
+hyscan_cached_set (HyScanCache *cache,
+                   guint64      key,
+                   guint64      detail,
+                   gpointer     data1,
+                   guint32      size1,
+                   gpointer     data2,
+                   guint32      size2)
 {
   HyScanCached *cached = HYSCAN_CACHED( cache );
 
-  gint32 size = size1 + size2;
+  guint32 size = size1 + size2;
   ObjectInfo *object;
-
-  if (size1 < 0 || size2 < 0)
-    return FALSE;
 
   /* Если размер нового объекта слишком большой, не сохраняем его. */
   if (size > cached->cache_size / 10)
@@ -402,36 +399,21 @@ hyscan_cached_set2 (HyScanCache *cache,
   return TRUE;
 }
 
-/* Функция добавляет или изменяет объект в кэше. */
-static gboolean
-hyscan_cached_set (HyScanCache *cache,
-                   guint64      key,
-                   guint64      detail,
-                   gpointer     data,
-                   gint32       size)
-{
-  return hyscan_cached_set2 (cache, key, detail, data, size, NULL, 0);
-}
-
 /* Функция считывает объект из кэша. */
 static gboolean
-hyscan_cached_get2 (HyScanCache *cache,
-                    guint64      key,
-                    guint64      detail,
-                    gpointer     buffer1,
-                    gint32      *buffer1_size,
-                    gpointer     buffer2,
-                    gint32      *buffer2_size)
+hyscan_cached_get (HyScanCache *cache,
+                   guint64      key,
+                   guint64      detail,
+                   gpointer     buffer1,
+                   guint32     *buffer1_size,
+                   gpointer     buffer2,
+                   guint32     *buffer2_size)
 {
   HyScanCached *cached = HYSCAN_CACHED (cache);
 
   ObjectInfo *object;
 
   /* Проверка буферов. */
-  if (buffer1 != NULL && *buffer1_size <= 0)
-    return FALSE;
-  if (buffer2 != NULL && *buffer2_size <= 0)
-    return FALSE;
   if (buffer1 == NULL && buffer2 != NULL)
     return FALSE;
 
@@ -486,22 +468,9 @@ hyscan_cached_get2 (HyScanCache *cache,
   return TRUE;
 }
 
-/* Функция считывает объект из кэша. */
-static gboolean
-hyscan_cached_get (HyScanCache *cache,
-                   guint64      key,
-                   guint64      detail,
-                   gpointer     buffer,
-                   gint32      *buffer_size)
-{
-  return hyscan_cached_get2 (cache, key,detail, buffer, buffer_size, NULL, NULL);
-}
-
 static void
 hyscan_cached_interface_init (HyScanCacheInterface *iface)
 {
   iface->set = hyscan_cached_set;
-  iface->set2 = hyscan_cached_set2;
   iface->get = hyscan_cached_get;
-  iface->get2 = hyscan_cached_get2;
 }

@@ -108,7 +108,7 @@ data_reader (gpointer data)
   /* Работа с кэшем. */
   while (g_atomic_int_get (&stop) == 0)
     {
-      gint32 size1, size2;
+      guint32 size1, size2;
       gboolean status;
       gdouble req_time;
       gchar key[16];

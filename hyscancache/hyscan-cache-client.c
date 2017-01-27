@@ -171,13 +171,13 @@ hyscan_cache_client_object_finalize (GObject *object)
 
 /* Функция добавляет или изменяет объект в кэше. */
 static gboolean
-hyscan_cache_client_set2 (HyScanCache *cache,
-                          guint64      key,
-                          guint64      detail,
-                          gpointer     data1,
-                          gint32       size1,
-                          gpointer     data2,
-                          gint32       size2)
+hyscan_cache_client_set (HyScanCache *cache,
+                         guint64      key,
+                         guint64      detail,
+                         gpointer     data1,
+                         guint32      size1,
+                         gpointer     data2,
+                         guint32      size2)
 {
   HyScanCacheClient *cachec = HYSCAN_CACHE_CLIENT (cache);
   uRpcData *urpc_data;
@@ -233,26 +233,15 @@ exit:
   return status;
 }
 
-/* Функция добавляет или изменяет объект в кэше. */
-static gboolean
-hyscan_cache_client_set (HyScanCache *cache,
-                         guint64      key,
-                         guint64      detail,
-                         gpointer     data,
-                         gint32       size)
-{
-  return hyscan_cache_client_set2 (cache, key, detail, data, size, NULL, 0);
-}
-
 /* Функция считывает объект из кэша. */
 gboolean
-hyscan_cache_client_get2 (HyScanCache *cache,
-                          guint64      key,
-                          guint64      detail,
-                          gpointer     buffer1,
-                          gint32      *buffer1_size,
-                          gpointer     buffer2,
-                          gint32      *buffer2_size)
+hyscan_cache_client_get (HyScanCache *cache,
+                         guint64      key,
+                         guint64      detail,
+                         gpointer     buffer1,
+                         guint32     *buffer1_size,
+                         gpointer     buffer2,
+                         guint32     *buffer2_size)
 {
   HyScanCacheClient *cachec = HYSCAN_CACHE_CLIENT (cache);
   uRpcData *data;
@@ -261,16 +250,12 @@ hyscan_cache_client_get2 (HyScanCache *cache,
   gboolean status = FALSE;
   gpointer value;
   guint32 value_size;
-  gint32 size1;
-  gint32 size2;
+  guint32 size1;
+  guint32 size2;
 
   if (cachec->rpc == NULL)
     return FALSE;
 
-  if (buffer1 != NULL && *buffer1_size <= 0)
-    return FALSE;
-  if (buffer2 != NULL && *buffer2_size <= 0)
-    return FALSE;
   if (buffer1 == NULL && buffer2 != NULL)
     return FALSE;
 
@@ -308,7 +293,7 @@ hyscan_cache_client_get2 (HyScanCache *cache,
 
       if (buffer1_size != NULL)
         {
-          if (urpc_data_get_int32 (data, HYSCAN_CACHE_RPC_PARAM_SIZE1, buffer1_size) != 0)
+          if (urpc_data_get_uint32 (data, HYSCAN_CACHE_RPC_PARAM_SIZE1, buffer1_size) != 0)
             goto exit;
         }
     }
@@ -333,10 +318,10 @@ hyscan_cache_client_get2 (HyScanCache *cache,
       if (exec_status != HYSCAN_CACHE_RPC_STATUS_OK)
         goto exit;
 
-      if (urpc_data_get_int32(data, HYSCAN_CACHE_RPC_PARAM_SIZE1, &size1) != 0)
+      if (urpc_data_get_uint32(data, HYSCAN_CACHE_RPC_PARAM_SIZE1, &size1) != 0)
         hyscan_cache_client_get_error ("size1");
 
-      if (urpc_data_get_int32(data, HYSCAN_CACHE_RPC_PARAM_SIZE2, &size2) != 0)
+      if (urpc_data_get_uint32(data, HYSCAN_CACHE_RPC_PARAM_SIZE2, &size2) != 0)
         size2 = 0;
 
       value = urpc_data_get (data, HYSCAN_CACHE_RPC_PARAM_DATA1, &value_size);
@@ -365,17 +350,6 @@ exit:
   return status;
 }
 
-/* Функция считывает объект из кэша. */
-static gboolean
-hyscan_cache_client_get (HyScanCache *cache,
-                         guint64      key,
-                         guint64      detail,
-                         gpointer     buffer,
-                         gint32      *buffer_size)
-{
-  return hyscan_cache_client_get2 (cache, key,detail, buffer, buffer_size, NULL, NULL);
-}
-
 /* Функция создаёт новый объект HyScanCacheClient. */
 HyScanCacheClient *
 hyscan_cache_client_new (const gchar *server_name)
@@ -387,7 +361,5 @@ static void
 hyscan_cache_client_interface_init (HyScanCacheInterface *iface)
 {
   iface->set = hyscan_cache_client_set;
-  iface->set2 = hyscan_cache_client_set2;
   iface->get = hyscan_cache_client_get;
-  iface->get2 = hyscan_cache_client_get2;
 }
