@@ -127,7 +127,7 @@ data_reader (gpointer data)
       if (status)
         {
           /* Проверка размера данных. */
-          if (size1 < size2 || size1 != ((key_id % 2) ? big_size : small_size))
+          if (size1 < size2 || size1 != (guint)((key_id % 2) ? big_size : small_size))
             {
               g_error ("test thread %d: '%s' size mismatch %d, %d != %d",
                        thread_id, key, size1, size2, key_id % 2 ? big_size : small_size);

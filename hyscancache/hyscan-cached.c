@@ -70,22 +70,22 @@ static void            hyscan_cached_object_constructed           (GObject      
 static void            hyscan_cached_object_finalize              (GObject              *object);
 
 static void            hyscan_cached_free_used                    (HyScanCached         *cached,
-                                                                   gint32                size);
+                                                                   guint32               size);
 
 static ObjectInfo     *hyscan_cached_rise_object                  (HyScanCached         *cache,
                                                                    guint64               key,
                                                                    guint64               detail,
                                                                    gpointer              data1,
-                                                                   gint32                size1,
+                                                                   guint32               size1,
                                                                    gpointer              data2,
-                                                                   gint32                size2);
+                                                                   guint32               size2);
 static ObjectInfo     *hyscan_cached_update_object                (HyScanCached         *cache,
                                                                    ObjectInfo           *object,
                                                                    guint64               detail,
                                                                    gpointer              data1,
-                                                                   gint32                size1,
+                                                                   guint32               size1,
                                                                    gpointer              data2,
-                                                                   gint32                size2);
+                                                                   guint32               size2);
 static void            hyscan_cached_drop_object                  (HyScanCached         *cache,
                                                                    ObjectInfo           *object);
 
@@ -166,7 +166,7 @@ hyscan_cached_object_finalize (GObject *object)
 /* Функция освобождает память в кэше для размещения нового объекта. */
 static void
 hyscan_cached_free_used (HyScanCached *cached,
-                         gint32        size)
+                         guint32       size)
 {
   ObjectInfo *object = cached->bottom_object;
 
@@ -185,12 +185,12 @@ hyscan_cached_rise_object (HyScanCached *cached,
                            guint64       key,
                            guint64       detail,
                            gpointer      data1,
-                           gint32        size1,
+                           guint32       size1,
                            gpointer      data2,
-                           gint32        size2)
+                           guint32       size2)
 {
   ObjectInfo *object;
-  gint32 size = size1 + size2;
+  guint32 size = size1 + size2;
 
   /* Инициализация. */
   object = g_malloc (OBJECT_HEADER_SIZE + size);
@@ -218,11 +218,11 @@ hyscan_cached_update_object (HyScanCached *cached,
                              ObjectInfo   *object,
                              guint64       detail,
                              gpointer      data1,
-                             gint32        size1,
+                             guint32       size1,
                              gpointer      data2,
-                             gint32        size2)
+                             guint32       size2)
 {
-  gint32 size = size1 + size2;
+  guint32 size = size1 + size2;
 
   /* Если текущий размер объекта меньше нового размера или больше нового на 5%, выделяем память заново. */
   if (object->allocated < size || ((gdouble) size / (gdouble) object->allocated) < 0.95)
