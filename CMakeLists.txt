@@ -1,13 +1,17 @@
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.8)
 
 project (libhyscancache)
+
+set (HYSCAN_MAJOR_VERSION 5)
+set (HYSCAN_CACHE_VERSION 0)
+set (HYSCAN_CACHE_LIBRARY "hyscancache-${HYSCAN_MAJOR_VERSION}")
 
 include (FindPkgConfig)
 include (TestBigEndian)
 
 if (NOT CMAKE_BUILD_TYPE)
-  set (CMAKE_BUILD_TYPE "Release")
+  set (CMAKE_BUILD_TYPE Release)
 endif ()
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -26,13 +30,13 @@ else ()
   add_definitions (-DFARMHASH_LITTLE_ENDIAN=1)
 endif ()
 
-if (${CMAKE_C_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
+if (${CMAKE_C_COMPILER_ID} STREQUAL GNU OR ${CMAKE_C_COMPILER_ID} STREQUAL Clang)
   set (C_FLAGS "-Wall -Wextra -Wno-unused-parameter $ENV{CFLAGS}")
   set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 ${C_FLAGS}")
-  set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O1  ${C_FLAGS}")
+  set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O1 ${C_FLAGS}")
   set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2 ${C_FLAGS}")
   set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1 ${C_FLAGS}")
-elseif (${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
+elseif (${CMAKE_C_COMPILER_ID} STREQUAL MSVC)
   set (C_FLAGS "/wd4244 /wd4305 $ENV{CFLAGS}")
   set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${C_FLAGS}")
   set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_FLAGS}")
@@ -61,17 +65,28 @@ if (NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
   set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 endif ()
 
-pkg_check_modules (GLIB2 REQUIRED "glib-2.0 gobject-2.0 gthread-2.0 gio-2.0")
+pkg_check_modules (GLIB2 REQUIRED glib-2.0 gobject-2.0 gthread-2.0 gio-2.0)
 add_definitions (${GLIB2_CFLAGS})
 link_directories (${GLIB2_LIBRARY_DIRS})
 
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscancache")
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../urpc/urpc")
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
+if (HYSCAN_USE_SYS_LIBS)
+  pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}")
+  pkg_check_modules (URPC REQUIRED urpc)
 
-link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../urpc/bin")
-set (ADDON_LIBRARIES urpc)
+  link_directories (${HYSCAN_LIBRARY_DIRS} ${URPC_LIBRARY_DIRS})
+  add_definitions (${HYSCAN_CFLAGS} ${URPC_CFLAGS})
+else ()
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
+  set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}")
+
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../urpc/urpc")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../urpc/bin")
+  set (URPC_LIBRARIES urpc)
+endif ()
+
+include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscancache")
 
 add_definitions (-DG_LOG_DOMAIN="HyScanCache")
-add_subdirectory ("hyscancache")
-add_subdirectory ("tests")
+add_subdirectory (hyscancache)
+add_subdirectory (tests)

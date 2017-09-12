@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include/hyscan-@HYSCAN_MAJOR_VERSION@/hyscancache
+
+Name: HyScanCache
+Version: @HYSCAN_MAJOR_VERSION@.@HYSCAN_CACHE_VERSION@
+Description: HyScan cache library
+
+Requires: glib-2.0 gobject-2.0 gthread-2.0 gio-2.0
+Libs: -L${libdir} -lhyscancache-@HYSCAN_MAJOR_VERSION@
+Cflags: -I${includedir}
