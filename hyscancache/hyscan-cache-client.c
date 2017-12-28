@@ -15,7 +15,7 @@
 #include <urpc-client.h>
 
 #define hyscan_cache_client_lock_error()   do { \
-                                             g_warning ("%s: can't lock rpc transport to '%s'", __FUNCTION__, cachec->uri); \
+                                             g_warning ("%s: can't lock rpc transport to '%s'", __FUNCTION__, priv->uri); \
                                              goto exit; \
                                            } while (0)
 
@@ -37,14 +37,12 @@
 enum
 {
   PROP_O,
-  PROP_SERVER_NAME
+  PROP_URI
 };
 
 /* Внутренние данные объекта. */
-struct _HyScanCacheClient
+struct _HyScanCacheClientPrivate
 {
-  GObject              parent_instance;
-
   gchar               *uri;
   uRpcClient          *rpc;
 };
@@ -58,25 +56,27 @@ static void    hyscan_cache_client_object_constructed  (GObject              *ob
 static void    hyscan_cache_client_object_finalize     (GObject              *object);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanCacheClient, hyscan_cache_client, G_TYPE_OBJECT,
+                         G_ADD_PRIVATE (HyScanCacheClient)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_CACHE, hyscan_cache_client_interface_init));
 
 static void
 hyscan_cache_client_class_init (HyScanCacheClientClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS( klass );
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->set_property = hyscan_cache_client_set_property;
   object_class->constructed = hyscan_cache_client_object_constructed;
   object_class->finalize = hyscan_cache_client_object_finalize;
 
-  g_object_class_install_property (object_class, PROP_SERVER_NAME,
-                                   g_param_spec_string ("server-name", "Server name", "Server name", NULL,
+  g_object_class_install_property (object_class, PROP_URI,
+                                   g_param_spec_string ("uri", "Uri", "HyScan cache uri", NULL,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
-hyscan_cache_client_init (HyScanCacheClient *cache)
+hyscan_cache_client_init (HyScanCacheClient *cachec)
 {
+  cachec->priv = hyscan_cache_client_get_instance_private (cachec);
 }
 
 static void
@@ -89,8 +89,8 @@ hyscan_cache_client_set_property (GObject      *object,
 
   switch (prop_id)
     {
-    case PROP_SERVER_NAME:
-      cachec->uri = g_strdup_printf ("shm://%s", g_value_get_string (value));
+    case PROP_URI:
+      cachec->priv->uri = g_value_dup_string (value);
       break;
 
     default:
@@ -103,61 +103,63 @@ static void
 hyscan_cache_client_object_constructed (GObject *object)
 {
   HyScanCacheClient *cachec = HYSCAN_CACHE_CLIENT (object);
+  HyScanCacheClientPrivate *priv = cachec->priv;
   uRpcData *urpc_data;
   guint32 version;
 
   /* Подключаемся к RPC серверу. */
-  cachec->rpc = urpc_client_create (cachec->uri, URPC_MAX_DATA_SIZE, URPC_DEFAULT_DATA_TIMEOUT);
-  if (cachec->rpc == NULL)
+  priv->rpc = urpc_client_create (priv->uri, URPC_MAX_DATA_SIZE, URPC_DEFAULT_DATA_TIMEOUT);
+  if (priv->rpc == NULL)
     return;
 
-  if (urpc_client_connect (cachec->rpc) != 0)
+  if (urpc_client_connect (priv->rpc) != 0)
     {
-      g_warning ("hyscan_cache_client: can't connect to '%s'", cachec->uri);
+      g_warning ("HyScanCacheClient: can't connect to '%s'", priv->uri);
       goto fail;
     }
 
-  /* Проверка версии сервера. */
-  urpc_data = urpc_client_lock (cachec->rpc);
+  /* Проверка версии сервера кэша данных. */
+  urpc_data = urpc_client_lock (priv->rpc);
   if (urpc_data == NULL)
     {
-      g_warning ("hyscan_cache_client: can't lock rpc transport to '%s'", cachec->uri);
+      g_warning ("HyScanCacheClient: can't lock rpc transport to '%s'", priv->uri);
       goto fail;
     }
 
-  if (urpc_client_exec (cachec->rpc, HYSCAN_CACHE_RPC_PROC_VERSION) != URPC_STATUS_OK)
+  if (urpc_client_exec (priv->rpc, HYSCAN_CACHE_RPC_PROC_VERSION) != URPC_STATUS_OK)
     {
-      urpc_client_unlock (cachec->rpc);
-      g_warning ("hyscan_cache_client: can't execute procedure");
+      urpc_client_unlock (priv->rpc);
+      g_warning ("HyScanCacheClient: can't execute procedure");
       goto fail;
     }
 
   if (urpc_data_get_uint32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_VERSION, &version) != 0 ||
       version != HYSCAN_CACHE_RPC_VERSION)
     {
-      g_warning ("hyscan_cache_client: server version mismatch: need %d, got: %d",
+      g_warning ("HyScanCacheClient: server version mismatch: need %d, got: %d",
                  HYSCAN_CACHE_RPC_VERSION, version);
-      urpc_client_unlock (cachec->rpc);
+      urpc_client_unlock (priv->rpc);
       goto fail;
     }
 
-  urpc_client_unlock (cachec->rpc);
+  urpc_client_unlock (priv->rpc);
   return;
 
 fail:
-  urpc_client_destroy (cachec->rpc);
-  cachec->rpc = NULL;
+  urpc_client_destroy (priv->rpc);
+  priv->rpc = NULL;
 }
 
 static void
 hyscan_cache_client_object_finalize (GObject *object)
 {
   HyScanCacheClient *cachec = HYSCAN_CACHE_CLIENT (object);
+  HyScanCacheClientPrivate *priv = cachec->priv;
 
-  if (cachec->rpc != NULL)
-    urpc_client_destroy (cachec->rpc);
+  if (priv->rpc != NULL)
+    urpc_client_destroy (priv->rpc);
 
-  g_free (cachec->uri);
+  g_free (priv->uri);
 
   G_OBJECT_CLASS (hyscan_cache_client_parent_class)->finalize (object);
 }
@@ -171,27 +173,37 @@ hyscan_cache_client_object_finalize (GObject *object)
 
 /* Функция добавляет или изменяет объект в кэше. */
 static gboolean
-hyscan_cache_client_set (HyScanCache *cache,
-                         guint64      key,
-                         guint64      detail,
-                         gpointer     data1,
-                         guint32      size1,
-                         gpointer     data2,
-                         guint32      size2)
+hyscan_cache_client_set (HyScanCache  *cache,
+                         guint64       key,
+                         guint64       detail,
+                         HyScanBuffer *buffer1,
+                         HyScanBuffer *buffer2)
 {
   HyScanCacheClient *cachec = HYSCAN_CACHE_CLIENT (cache);
+  HyScanCacheClientPrivate *priv = cachec->priv;
   uRpcData *urpc_data;
   guint32 exec_status;
 
+  guint8 *data;
+  gpointer data1 = NULL;
+  gpointer data2 = NULL;
+  guint32 size1 = 0;
+  guint32 size2 = 0;
+
   gboolean status = FALSE;
 
-  if (cachec->rpc == NULL)
+  if (buffer1 != NULL)
+    data1 = hyscan_buffer_get_data (buffer1, &size1);
+  if (buffer2 != NULL)
+    data2 = hyscan_buffer_get_data (buffer2, &size2);
+
+  if (priv->rpc == NULL)
     return FALSE;
 
   if ((size1 + size2) > URPC_MAX_DATA_SIZE - 1024 )
     return FALSE;
 
-  urpc_data = urpc_client_lock (cachec->rpc);
+  urpc_data = urpc_client_lock (priv->rpc);
   if (urpc_data == NULL)
     hyscan_cache_client_lock_error ();
 
@@ -201,23 +213,17 @@ hyscan_cache_client_set (HyScanCache *cache,
   if (urpc_data_set_uint64 (urpc_data, HYSCAN_CACHE_RPC_PARAM_DETAIL, detail) != 0)
     hyscan_cache_client_set_error ("detail");
 
+  data = urpc_data_set (urpc_data, HYSCAN_CACHE_RPC_PARAM_DATA, NULL, size1 + size2);
+  if (data == NULL)
+    hyscan_cache_client_set_error ("data");
+
   if (size1 > 0 && data1 != NULL)
-    {
-      if (urpc_data_set_int32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE1, size1) != 0)
-        hyscan_cache_client_set_error ("size1");
-      if (urpc_data_set (urpc_data, HYSCAN_CACHE_RPC_PARAM_DATA1, data1, size1) == NULL)
-        hyscan_cache_client_set_error ("data1");
-    }
+    memcpy (data, data1, size1);
 
   if (size2 > 0 && data2 != NULL)
-    {
-      if (urpc_data_set_int32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_SIZE2, size2) != 0)
-        hyscan_cache_client_set_error ("size2");
-      if (urpc_data_set (urpc_data, HYSCAN_CACHE_RPC_PARAM_DATA2, data2, size2) == NULL)
-        hyscan_cache_client_set_error ("data2");
-    }
+    memcpy (data + size1, data2, size2);
 
-  if (urpc_client_exec (cachec->rpc, HYSCAN_CACHE_RPC_PROC_SET) != URPC_STATUS_OK)
+  if (urpc_client_exec (priv->rpc, HYSCAN_CACHE_RPC_PROC_SET) != URPC_STATUS_OK)
     hyscan_cache_client_exec_error ("set");
 
   if (urpc_data_get_uint32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_STATUS, &exec_status) != 0)
@@ -228,133 +234,78 @@ hyscan_cache_client_set (HyScanCache *cache,
   status = TRUE;
 
 exit:
-  urpc_client_unlock (cachec->rpc);
+  urpc_client_unlock (priv->rpc);
 
   return status;
 }
 
 /* Функция считывает объект из кэша. */
 gboolean
-hyscan_cache_client_get (HyScanCache *cache,
-                         guint64      key,
-                         guint64      detail,
-                         gpointer     buffer1,
-                         guint32     *buffer1_size,
-                         gpointer     buffer2,
-                         guint32     *buffer2_size)
+hyscan_cache_client_get (HyScanCache  *cache,
+                         guint64       key,
+                         guint64       detail,
+                         guint32       size1,
+                         HyScanBuffer *buffer1,
+                         HyScanBuffer *buffer2)
 {
   HyScanCacheClient *cachec = HYSCAN_CACHE_CLIENT (cache);
-  uRpcData *data;
+  HyScanCacheClientPrivate *priv = cachec->priv;
+  uRpcData *urpc_data;
   guint32 exec_status;
 
   gboolean status = FALSE;
-  gpointer value;
-  guint32 value_size;
-  guint32 size1;
-  guint32 size2;
+  guint8 *data;
+  guint32 size;
 
-  if (cachec->rpc == NULL)
+  if (priv->rpc == NULL)
     return FALSE;
 
   if (buffer1 == NULL && buffer2 != NULL)
     return FALSE;
 
-  if (buffer1 != NULL && buffer2 == NULL)
-    {
-      if (*buffer1_size > URPC_MAX_DATA_SIZE - 1024)
-        return FALSE;
-    }
-  if (buffer1 != NULL && buffer2 != NULL)
-    {
-      if ((*buffer1_size + *buffer2_size) > URPC_MAX_DATA_SIZE - 1024)
-        return FALSE;
-    }
-
-  data = urpc_client_lock (cachec->rpc);
-  if (data == NULL)
+  urpc_data = urpc_client_lock (priv->rpc);
+  if (urpc_data == NULL)
     hyscan_cache_client_lock_error ();
 
-  if (urpc_data_set_uint64 (data, HYSCAN_CACHE_RPC_PARAM_KEY, key) != 0)
+  if (urpc_data_set_uint64 (urpc_data, HYSCAN_CACHE_RPC_PARAM_KEY, key) != 0)
     hyscan_cache_client_set_error ("key");
 
-  if (urpc_data_set_uint64 (data, HYSCAN_CACHE_RPC_PARAM_DETAIL, detail) != 0)
+  if (urpc_data_set_uint64 (urpc_data, HYSCAN_CACHE_RPC_PARAM_DETAIL, detail) != 0)
     hyscan_cache_client_set_error ("detail");
 
-  /* Запрашивается размер данных. */
-  if (buffer1 == NULL && buffer2 == NULL)
-    {
-      if (urpc_client_exec (cachec->rpc, HYSCAN_CACHE_RPC_PROC_SIZE) != URPC_STATUS_OK)
-        hyscan_cache_client_exec_error ("size");
+  if (urpc_client_exec (priv->rpc, HYSCAN_CACHE_RPC_PROC_GET) != URPC_STATUS_OK)
+    hyscan_cache_client_exec_error ("get");
 
-      if (urpc_data_get_uint32 (data, HYSCAN_CACHE_RPC_PARAM_STATUS, &exec_status) != 0)
-        hyscan_cache_client_get_error ("exec_status");
-      if (exec_status != HYSCAN_CACHE_RPC_STATUS_OK)
-        goto exit;
+  if (urpc_data_get_uint32 (urpc_data, HYSCAN_CACHE_RPC_PARAM_STATUS, &exec_status) != 0)
+    hyscan_cache_client_get_error ("exec_status");
+  if (exec_status != HYSCAN_CACHE_RPC_STATUS_OK)
+    goto exit;
 
-      if (buffer1_size != NULL)
-        {
-          if (urpc_data_get_uint32 (data, HYSCAN_CACHE_RPC_PARAM_SIZE1, buffer1_size) != 0)
-            goto exit;
-        }
-    }
+  data = urpc_data_get (urpc_data, HYSCAN_CACHE_RPC_PARAM_DATA, &size);
+  if (data == NULL)
+    hyscan_cache_client_get_error ("data");
 
-  /* Запрашиваются данные. */
-  else
-    {
-      if (urpc_data_set_int32 (data, HYSCAN_CACHE_RPC_PARAM_SIZE1, *buffer1_size) != 0)
-        hyscan_cache_client_set_error ("buffer1_size");
+  size1 = MIN (size, size1);
+  hyscan_buffer_set_data (buffer1, HYSCAN_DATA_BLOB, data, size1);
 
-      if (buffer2 != NULL)
-        {
-          if (urpc_data_set_int32 (data, HYSCAN_CACHE_RPC_PARAM_SIZE2, *buffer2_size) != 0)
-            hyscan_cache_client_set_error ("buffer2_size");
-        }
+  if (buffer2 != NULL)
+    hyscan_buffer_set_data (buffer2, HYSCAN_DATA_BLOB, data + size1, size - size1);
 
-      if (urpc_client_exec (cachec->rpc, HYSCAN_CACHE_RPC_PROC_GET) != URPC_STATUS_OK)
-        hyscan_cache_client_exec_error ("get");
-
-      if (urpc_data_get_uint32 (data, HYSCAN_CACHE_RPC_PARAM_STATUS, &exec_status) != 0)
-        hyscan_cache_client_get_error ("exec_status");
-      if (exec_status != HYSCAN_CACHE_RPC_STATUS_OK)
-        goto exit;
-
-      if (urpc_data_get_uint32(data, HYSCAN_CACHE_RPC_PARAM_SIZE1, &size1) != 0)
-        hyscan_cache_client_get_error ("size1");
-
-      if (urpc_data_get_uint32(data, HYSCAN_CACHE_RPC_PARAM_SIZE2, &size2) != 0)
-        size2 = 0;
-
-      value = urpc_data_get (data, HYSCAN_CACHE_RPC_PARAM_DATA1, &value_size);
-      if (value == NULL || value_size != size1 + size2)
-        hyscan_cache_client_get_error ("data-size");
-
-      if (size1 > *buffer1_size)
-        goto exit;
-      memcpy (buffer1, value, size1);
-      *buffer1_size = size1;
-
-      if (buffer2 != NULL)
-        {
-          if (size2 > *buffer2_size)
-            goto exit;
-          memcpy (buffer2, (guint8*)value + size1, size2);
-          *buffer2_size = size2;
-        }
-
-      status = TRUE;
-    }
+  status = TRUE;
 
 exit:
-  urpc_client_unlock (cachec->rpc);
+  urpc_client_unlock (priv->rpc);
 
   return status;
 }
 
 /* Функция создаёт новый объект HyScanCacheClient. */
 HyScanCacheClient *
-hyscan_cache_client_new (const gchar *server_name)
+hyscan_cache_client_new (const gchar *uri)
 {
-  return g_object_new (HYSCAN_TYPE_CACHE_CLIENT, "server-name", server_name, NULL);
+  return g_object_new (HYSCAN_TYPE_CACHE_CLIENT,
+                       "uri", uri,
+                       NULL);
 }
 
 static void

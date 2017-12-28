@@ -9,8 +9,7 @@
  * \defgroup HyScanCacheClient HyScanCacheClient - реализация клиента системы кэширования данных на сервере
  *
  * HyScanCacheClient реализация интерфейса \link HyScanCache \endlink предназначенная для работы с сервером
- * кэширования \link HyScanCacheServer \endlink. Взаимодействие с сервером осуществляется с использованием
- * протокола SHM библиотеки uRPC.
+ * кэширования \link HyScanCacheServer \endlink.
  *
  * Создать клиента системы кэширования можно с помощью функции #hyscan_cache_client_new.
  *
@@ -31,7 +30,15 @@ G_BEGIN_DECLS
 #define HYSCAN_CACHE_CLIENT_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_CACHE_CLIENT, HyScanCacheClientClass))
 
 typedef struct _HyScanCacheClient HyScanCacheClient;
+typedef struct _HyScanCacheClientPrivate HyScanCacheClientPrivate;
 typedef struct _HyScanCacheClientClass HyScanCacheClientClass;
+
+struct _HyScanCacheClient
+{
+  GObject parent_instance;
+
+  HyScanCacheClientPrivate *priv;
+};
 
 struct _HyScanCacheClientClass
 {
@@ -39,19 +46,19 @@ struct _HyScanCacheClientClass
 };
 
 HYSCAN_API
-GType hyscan_cache_client_get_type( void );
+GType                  hyscan_cache_client_get_type    ( void );
 
 /**
  *
  * Функция создаёт новый объект \link HyScanCacheClient \endlink.
  *
- * \param server_name имя сервера системы кэширования.
+ * \param uri адрес сервера.
  *
  * \return Указатель на объект \link HyScanCacheClient \endlink.
  *
  */
 HYSCAN_API
-HyScanCacheClient  *hyscan_cache_client_new            (const gchar           *server_name);
+HyScanCacheClient     *hyscan_cache_client_new         (const gchar           *uri);
 
 G_END_DECLS
 

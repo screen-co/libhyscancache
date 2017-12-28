@@ -14,10 +14,6 @@
  * в системе кэширования. Из-за особенностей реализации алгоритмов выделения памяти, объект
  * HyScanCached может использовать на 5-10% больше памяти, чем указано пользователем.
  *
- * HyScanCached может хранить ограниченное число объектов. Число объектов зависит от объёма
- * памяти выделенной для кэша и равно CACHE_SIZE / 8192, где CACHE_SIZE - максимальный размер
- * кэша в байтах.
- *
  * В случае исчерпания всего доступного объёма памяти или превышения лимита объектов, HyScanCached
  * удаляет объекты, доступ к которым осуществлялся давно, и использует освободившуюся память для
  * сохранения новых объектов.
@@ -39,7 +35,15 @@ G_BEGIN_DECLS
 #define HYSCAN_CACHED_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_CACHED, HyScanCachedClass))
 
 typedef struct _HyScanCached HyScanCached;
+typedef struct _HyScanCachedPrivate HyScanCachedPrivate;
 typedef struct _HyScanCachedClass HyScanCachedClass;
+
+struct _HyScanCached
+{
+  GObject parent_instance;
+
+  HyScanCachedPrivate *priv;
+};
 
 struct _HyScanCachedClass
 {

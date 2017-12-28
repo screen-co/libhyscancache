@@ -19,11 +19,10 @@ gboolean preload = FALSE;
 gboolean update = FALSE;
 
 HyScanCache *cache[MAX_THREADS+2];
-HyScanCacheServer *server;
+HyScanCacheServer *server = NULL;
 
 gint pattern_size;
 guint8 **patterns;
-guint8 **buffers;
 
 gint started_threads = 0;
 gint start = 0;
@@ -31,14 +30,20 @@ gint stop = 0;
 
 /* Запись данных в кэш. */
 gpointer
-data_writer (gpointer data)
+data_writer (gpointer thread_data)
 {
-  gint data_index = GPOINTER_TO_INT( data );
+  HyScanBuffer *buffer1;
+  HyScanBuffer *buffer2;
+  gint data_index;
   gchar key[16];
   gint i;
 
+  buffer1 = hyscan_buffer_new ();
+  buffer2 = hyscan_buffer_new ();
+
   /* Сигнализация запуска потока. */
   g_atomic_int_inc (&started_threads);
+  data_index = GPOINTER_TO_INT (thread_data);
   g_message ("starting %s data writer thread", data_index ? "big" : "small");
 
   /* Загрузка кэша до начала тестирования. */
@@ -51,8 +56,11 @@ data_writer (gpointer data)
           gint32 size1 = (data_index ? big_size : small_size);
           gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
 
+          hyscan_buffer_wrap_data (buffer1, HYSCAN_DATA_BLOB, data, size1);
+          hyscan_buffer_wrap_data (buffer2, HYSCAN_DATA_BLOB, data, size2);
+
           g_snprintf (key, sizeof(key), "%09d", i);
-          if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size1, data, size2))
+          if (!hyscan_cache_set2 (cache[data_index], key, NULL, buffer1, buffer2))
             g_message ("data_writer: '%s' set error", key);
         }
     }
@@ -70,12 +78,18 @@ data_writer (gpointer data)
       gint32 size1 = (data_index ? big_size : small_size);
       gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
 
+      hyscan_buffer_wrap_data (buffer1, HYSCAN_DATA_BLOB, data, size1);
+      hyscan_buffer_wrap_data (buffer2, HYSCAN_DATA_BLOB, data, size2);
+
       g_snprintf (key, sizeof (key), "%09d", key_id);
-      if (!hyscan_cache_set2 (cache[data_index], key, NULL, data, size1, data, size2))
+      if (!hyscan_cache_set2 (cache[data_index], key, NULL, buffer1, buffer2))
         g_message ("data_writer: '%s' set error", key);
 
       g_usleep (1);
     }
+
+  g_object_unref (buffer1);
+  g_object_unref (buffer2);
 
   return NULL;
 }
@@ -85,6 +99,9 @@ gpointer
 data_reader (gpointer data)
 {
   static volatile gint running_threads = 0;
+
+  HyScanBuffer *buffer1;
+  HyScanBuffer *buffer2;
 
   gint thread_id;
 
@@ -97,6 +114,10 @@ data_reader (gpointer data)
   /* Идентификатор потока. */
   thread_id = g_atomic_int_add (&running_threads, 1);
 
+  /* Буферы данных. */
+  buffer1 = hyscan_buffer_new ();
+  buffer2 = hyscan_buffer_new ();
+
   /* Сигнализация запуска потока. */
   g_atomic_int_inc (&started_threads);
   g_message ("starting reader thread %d", thread_id);
@@ -108,6 +129,7 @@ data_reader (gpointer data)
   /* Работа с кэшем. */
   while (g_atomic_int_get (&stop) == 0)
     {
+      gpointer data1, data2;
       guint32 size1, size2;
       gboolean status;
       gdouble req_time;
@@ -118,26 +140,27 @@ data_reader (gpointer data)
       g_snprintf (key, sizeof (key), "%09d", key_id);
 
       g_timer_start (timer);
-      size1 = size2 = ((key_id % 2) ? big_size : small_size);
-      status = hyscan_cache_get2 (cache[thread_id+2], key, NULL,
-                                  buffers[thread_id], &size1,
-                                  buffers[thread_id] + size1, &size2);
+      size1 = ((key_id % 2) ? big_size : small_size);
+      status = hyscan_cache_get2 (cache[thread_id+2], key, NULL, size1, buffer1, buffer2);
       req_time = g_timer_elapsed (timer, NULL);
 
       if (status)
         {
+          data1 = hyscan_buffer_get_data (buffer1, &size1);
+          data2 = hyscan_buffer_get_data (buffer2, &size2);
+
           /* Проверка размера данных. */
-          if (size1 < size2 || size1 != (guint)((key_id % 2) ? big_size : small_size))
+          if ((size1 < size2) || (size1 != ((guint)((key_id % 2) ? big_size : small_size))))
             {
               g_error ("test thread %d: '%s' size mismatch %d, %d != %d",
                        thread_id, key, size1, size2, key_id % 2 ? big_size : small_size);
             }
           /* Проверка данных. */
-          else if (memcmp (buffers[thread_id], patterns[key_id % n_patterns], size1))
+          else if (memcmp (data1, patterns[key_id % n_patterns], size1))
             {
               g_error ("test thread %d: '%s' data1 mismatch", thread_id, key);
             }
-          else if (memcmp (buffers[thread_id] + size1, patterns[key_id % n_patterns], size2))
+          else if (memcmp (data2, patterns[key_id % n_patterns], size2))
             {
               g_error ("test thread %d: '%s' data2 mismatch", thread_id, key);
             }
@@ -157,6 +180,9 @@ data_reader (gpointer data)
 
   g_timer_destroy (timer);
 
+  g_object_unref (buffer1);
+  g_object_unref (buffer2);
+
   g_message ("thread %d: hits: number = %d time = %.3lf us/req, misses: number = %d time = %.3lf us/req",
              thread_id, hit, (1000000.0 * hit_time) / hit, miss, (1000000.0 * miss_time) / miss);
 
@@ -166,6 +192,7 @@ data_reader (gpointer data)
 int
 main (int argc, char **argv)
 {
+  HyScanCached *cached;
   GThread *small_data_writer_thread;
   GThread *big_data_writer_thread;
   GThread **threads;
@@ -240,19 +267,21 @@ main (int argc, char **argv)
     big_size -= 1;
 
   /* Создаём кэш. */
+  cached = hyscan_cached_new (cache_size);
   if (rpc)
     {
-      server = hyscan_cache_server_new ("local", cache_size, n_threads, n_threads + 2);
+      server = hyscan_cache_server_new ("shm://local", HYSCAN_CACHE (cached),
+                                        n_threads, n_threads + 2);
       if (!hyscan_cache_server_start(server))
         g_error ("can't start cache server");
+
       for (i = 0; i < n_threads + 2; i++)
-        cache[i] = HYSCAN_CACHE (hyscan_cache_client_new ("local"));
+        cache[i] = HYSCAN_CACHE (hyscan_cache_client_new ("shm://local"));
     }
   else
     {
-      cache[0] = HYSCAN_CACHE (hyscan_cached_new (cache_size));
-      for (i = 1; i < n_threads + 2; i++)
-        cache[i] = cache[0];
+      for (i = 0; i < n_threads + 2; i++)
+        cache[i] = g_object_ref (cached);
     }
 
   /* Шаблоны тестирования. */
@@ -265,11 +294,6 @@ main (int argc, char **argv)
       for (j = 0; j < pattern_size; j++)
         patterns[i][j] = g_random_int ();
     }
-
-  /* Буферы обмена. */
-  buffers = g_malloc (n_threads * sizeof(gint8*));
-  for (i = 0; i < n_threads; i++)
-    buffers[i] = g_malloc (2 * pattern_size);
 
   /* Потоки записи данных в кэш. */
   small_data_writer_thread = g_thread_new ("test-thread", data_writer, GINT_TO_POINTER( 0 ));
@@ -313,23 +337,14 @@ main (int argc, char **argv)
   g_thread_join (small_data_writer_thread);
   g_thread_join (big_data_writer_thread);
 
-  for (i = 0; i < n_threads; i++)
-    g_free (buffers[i]);
   for (i = 0; i < n_patterns; i++)
     g_free (patterns[i]);
-  g_free (buffers);
   g_free (patterns);
 
-  if (rpc)
-    {
-      for (i = 0; i < n_threads + 2; i++)
-        g_object_unref (cache[i]);
-      g_object_unref (server);
-    }
-  else
-    {
-      g_object_unref (cache[0]);
-    }
+  for (i = 0; i < n_threads + 2; i++)
+    g_clear_object (&cache[i]);
+  g_clear_object (&server);
+  g_clear_object (&cached);
 
   return 0;
 }

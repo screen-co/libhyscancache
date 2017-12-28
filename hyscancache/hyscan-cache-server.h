@@ -8,8 +8,8 @@
  *
  * \defgroup HyScanCacheServer HyScanCacheServer - сервер системы кэширования данных
  *
- * Сервер системы кэширования данных представляет доступ к кэшу на основе реализации
- * \link HyScanCached \endlink по протоколу SHM библиотеки uRPC.
+ * Сервер кеша данных транслирует все вызовы интерфейса \link HyScanCache \endlink в
+ * объект cache, указанный при создании сервера.
  *
  * Создать сервер системы кэширования можно с помощью функции #hyscan_cache_server_new.
  *
@@ -20,8 +20,7 @@
 #ifndef __HYSCAN_CACHE_SERVER_H__
 #define __HYSCAN_CACHE_SERVER_H__
 
-#include <glib-object.h>
-#include <hyscan-api.h>
+#include <hyscan-cache.h>
 
 G_BEGIN_DECLS
 
@@ -33,7 +32,15 @@ G_BEGIN_DECLS
 #define HYSCAN_CACHE_SERVER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_CACHE_SERVER, HyScanCacheServerClass))
 
 typedef struct _HyScanCacheServer HyScanCacheServer;
+typedef struct _HyScanCacheServerPrivate HyScanCacheServerPrivate;
 typedef struct _HyScanCacheServerClass HyScanCacheServerClass;
+
+struct _HyScanCacheServer
+{
+  GObject parent_instance;
+
+  HyScanCacheServerPrivate *priv;
+};
 
 struct _HyScanCacheServerClass
 {
@@ -41,14 +48,14 @@ struct _HyScanCacheServerClass
 };
 
 HYSCAN_API
-GType                  hyscan_cache_server_get_type            (void);
+GType                  hyscan_cache_server_get_type    (void);
 
 /**
  *
  * Функция создаёт новый объект \link HyScanCacheServer \endlink.
  *
- * \param name имя сервера кэширования;
- * \param size объём памяти для кэша, Мб;
+ * \param uri адрес сервера;
+ * \param cache объект в который транслируются запросы клиентов;
  * \param n_threads число потоков сервера;
  * \param n_clients максимальное число клиентов сервера.
  *
@@ -56,10 +63,10 @@ GType                  hyscan_cache_server_get_type            (void);
  *
  */
 HYSCAN_API
-HyScanCacheServer     *hyscan_cache_server_new                 (const gchar           *name,
-                                                                guint32                size,
-                                                                guint32                n_threads,
-                                                                guint32                n_clients);
+HyScanCacheServer     *hyscan_cache_server_new         (const gchar           *uri,
+                                                        HyScanCache           *cache,
+                                                        guint32                n_threads,
+                                                        guint32                n_clients);
 
 /**
  *
@@ -71,7 +78,7 @@ HyScanCacheServer     *hyscan_cache_server_new                 (const gchar     
  *
  */
 HYSCAN_API
-gboolean               hyscan_cache_server_start               (HyScanCacheServer     *server);
+gboolean               hyscan_cache_server_start       (HyScanCacheServer     *server);
 
 G_END_DECLS
 
