@@ -56,8 +56,8 @@ data_writer (gpointer thread_data)
           gint32 size1 = (data_index ? big_size : small_size);
           gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
 
-          hyscan_buffer_wrap_data (buffer1, HYSCAN_DATA_BLOB, data, size1);
-          hyscan_buffer_wrap_data (buffer2, HYSCAN_DATA_BLOB, data, size2);
+          hyscan_buffer_wrap (buffer1, HYSCAN_DATA_BLOB, data, size1);
+          hyscan_buffer_wrap (buffer2, HYSCAN_DATA_BLOB, data, size2);
 
           g_snprintf (key, sizeof(key), "%09d", i);
           if (!hyscan_cache_set2 (cache[data_index], key, NULL, buffer1, buffer2))
@@ -78,8 +78,8 @@ data_writer (gpointer thread_data)
       gint32 size1 = (data_index ? big_size : small_size);
       gint32 size2 = size1 * g_random_double_range (0.5, 1.0);
 
-      hyscan_buffer_wrap_data (buffer1, HYSCAN_DATA_BLOB, data, size1);
-      hyscan_buffer_wrap_data (buffer2, HYSCAN_DATA_BLOB, data, size2);
+      hyscan_buffer_wrap (buffer1, HYSCAN_DATA_BLOB, data, size1);
+      hyscan_buffer_wrap (buffer2, HYSCAN_DATA_BLOB, data, size2);
 
       g_snprintf (key, sizeof (key), "%09d", key_id);
       if (!hyscan_cache_set2 (cache[data_index], key, NULL, buffer1, buffer2))
@@ -146,8 +146,8 @@ data_reader (gpointer data)
 
       if (status)
         {
-          data1 = hyscan_buffer_get_data (buffer1, &size1);
-          data2 = hyscan_buffer_get_data (buffer2, &size2);
+          data1 = hyscan_buffer_get (buffer1, NULL, &size1);
+          data2 = hyscan_buffer_get (buffer2, NULL, &size2);
 
           /* Проверка размера данных. */
           if ((size1 < size2) || (size1 != ((guint)((key_id % 2) ? big_size : small_size))))

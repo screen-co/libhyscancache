@@ -204,7 +204,7 @@ hyscan_cache_server_rpc_proc_set (uRpcData *urpc_data,
   if (data != NULL)
     {
       buffer = thread_data;
-      hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, data, size);
+      hyscan_buffer_wrap (buffer, HYSCAN_DATA_BLOB, data, size);
     }
 
   status = hyscan_cache_set2i (priv->cache, key, detail, buffer, NULL);
@@ -245,12 +245,12 @@ hyscan_cache_server_rpc_proc_get (uRpcData *urpc_data,
   if (data == NULL)
     hyscan_cache_server_set_error ("data");
 
-  hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, data, size);
+  hyscan_buffer_wrap (buffer, HYSCAN_DATA_BLOB, data, size);
 
   status = hyscan_cache_get2i (priv->cache, key, detail, G_MAXUINT32, buffer, NULL);
   if (status)
     {
-      if (hyscan_buffer_get_data (buffer, &size) == NULL)
+      if (hyscan_buffer_get (buffer, NULL, &size) == NULL)
         size = 0;
 
       if (urpc_data_set (urpc_data, HYSCAN_CACHE_RPC_PARAM_DATA, NULL, size) == NULL )

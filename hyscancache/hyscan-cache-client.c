@@ -193,9 +193,9 @@ hyscan_cache_client_set (HyScanCache  *cache,
   gboolean status = FALSE;
 
   if (buffer1 != NULL)
-    data1 = hyscan_buffer_get_data (buffer1, &size1);
+    data1 = hyscan_buffer_get (buffer1, NULL, &size1);
   if (buffer2 != NULL)
-    data2 = hyscan_buffer_get_data (buffer2, &size2);
+    data2 = hyscan_buffer_get (buffer2, NULL, &size2);
 
   if (priv->rpc == NULL)
     return FALSE;
@@ -286,10 +286,10 @@ hyscan_cache_client_get (HyScanCache  *cache,
     hyscan_cache_client_get_error ("data");
 
   size1 = MIN (size, size1);
-  hyscan_buffer_set_data (buffer1, HYSCAN_DATA_BLOB, data, size1);
+  hyscan_buffer_set (buffer1, HYSCAN_DATA_BLOB, data, size1);
 
   if (buffer2 != NULL)
-    hyscan_buffer_set_data (buffer2, HYSCAN_DATA_BLOB, data + size1, size - size1);
+    hyscan_buffer_set (buffer2, HYSCAN_DATA_BLOB, data + size1, size - size1);
 
   status = TRUE;
 

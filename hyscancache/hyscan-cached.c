@@ -352,6 +352,7 @@ hyscan_cached_set (HyScanCache  *cache,
   HyScanCachedPrivate *priv = cached->priv;
 
   ObjectInfo *object;
+
   gpointer data1 = NULL;
   gpointer data2 = NULL;
   guint32 size1 = 0;
@@ -359,9 +360,9 @@ hyscan_cached_set (HyScanCache  *cache,
   guint32 size;
 
   if (buffer1 != NULL)
-    data1 = hyscan_buffer_get_data (buffer1, &size1);
+    data1 = hyscan_buffer_get (buffer1, NULL, &size1);
   if (buffer2 != NULL)
-    data2 = hyscan_buffer_get_data (buffer2, &size2);
+    data2 = hyscan_buffer_get (buffer2, NULL, &size2);
 
   size = size1 + size2;
 
@@ -379,8 +380,8 @@ hyscan_cached_set (HyScanCache  *cache,
     {
       if (object != NULL)
         hyscan_cached_drop_object (priv, object);
-      g_rw_lock_writer_unlock (&priv->data_lock);
-      return TRUE;
+
+      goto exit;
     }
 
   /* Очищаем кэш если достигнут лимит используемой памяти. */
@@ -407,6 +408,7 @@ hyscan_cached_set (HyScanCache  *cache,
   /* Перемещаем объект в начало списка используемых. */
   hyscan_cached_place_object_on_top_of_used (priv, object);
 
+exit:
   g_rw_lock_writer_unlock (&priv->data_lock);
 
   return TRUE;
@@ -424,6 +426,7 @@ hyscan_cached_get (HyScanCache  *cache,
   HyScanCached *cached = HYSCAN_CACHED (cache);
   HyScanCachedPrivate *priv = cached->priv;
 
+  gboolean status = FALSE;
   ObjectInfo *object;
   guint32 size2 = 0;
 
@@ -438,29 +441,25 @@ hyscan_cached_get (HyScanCache  *cache,
 
   /* Объекта в кэше нет. */
   if (object == NULL)
-    {
-      g_rw_lock_reader_unlock (&priv->data_lock);
-      return FALSE;
-    }
+    goto exit;
 
   /* Не совпадает дополнительная информация. */
   if (detail != 0 && object->detail != detail)
-    {
-      g_rw_lock_reader_unlock (&priv->data_lock);
-      return FALSE;
-    }
+    goto exit;
 
   /* Перемещаем объект в начало списка используемых. */
   hyscan_cached_place_object_on_top_of_used (priv, object);
 
   /* Копируем первую часть данных объекта. */
   size1 = MIN (size1, object->size);
-  if (buffer1 != NULL)
+  if ((buffer1 != NULL))
     {
       gpointer data;
 
-      hyscan_buffer_set_size (buffer1, size1);
-      data = hyscan_buffer_get_data (buffer1, &size1);
+      if (!hyscan_buffer_set_data_size (buffer1, size1))
+        goto exit;
+
+      data = hyscan_buffer_get (buffer1, NULL, &size1);
       memcpy (data, object->data, size1);
     }
 
@@ -470,14 +469,19 @@ hyscan_cached_get (HyScanCache  *cache,
     {
       gpointer data;
 
-      hyscan_buffer_set_size (buffer2, size2);
-      data = hyscan_buffer_get_data (buffer2, &size2);
+      if (!hyscan_buffer_set_data_size (buffer2, size2))
+        goto exit;
+
+      data = hyscan_buffer_get (buffer2, NULL, &size2);
       memcpy (data, object->data + size1, size2);
     }
 
+  status = TRUE;
+
+exit:
   g_rw_lock_reader_unlock (&priv->data_lock);
 
-  return TRUE;
+  return status;
 }
 
 static void
