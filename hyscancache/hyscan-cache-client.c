@@ -1,11 +1,47 @@
-/*
- * \file hyscan-cache-client.c
+/* hyscan-cache-client.c
  *
- * \brief Исходный файл клиента системы кэширования данных на сервере
- * \author Andrei Fadeev (andrei@webcontrol.ru)
- * \date 2015
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2015-2019 Screen LLC, Andrei Fadeev <andrei@webcontrol.ru>
  *
+ * This file is part of HyScanCache.
+ *
+ * HyScanCache is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanCache is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanCache имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanCache на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-cache-client
+ * @Short_description: кэширования данных на сервере
+ * @Title: HyScanCacheClient
+ *
+ * HyScanCacheClient реализация интерфейса #HyScanCache предназначенная для
+ * работы с сервером кэширования #HyScanCacheServer.
+ *
+ * Создать клиента системы кэширования можно с помощью функции
+ * #hyscan_cache_client_new.
  */
 
 #include "hyscan-cache-client.h"
@@ -299,7 +335,14 @@ exit:
   return status;
 }
 
-/* Функция создаёт новый объект HyScanCacheClient. */
+/**
+ * hyscan_cache_client_new:
+ * @uri: адрес сервера
+ *
+ * Функция создаёт новый объект #HyScanCacheClient.
+ *
+ * Returns: #HyScanCacheClient. Для удаления #g_object_unref.
+ */
 HyScanCacheClient *
 hyscan_cache_client_new (const gchar *uri)
 {

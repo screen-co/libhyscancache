@@ -1,23 +1,35 @@
-/**
- * \file hyscan-cached.h
+/* hyscan-cached.h
  *
- * \brief Заголовочный файл системы кэширования данных в оперативной памяти
- * \author Andrei Fadeev (andrei@webcontrol.ru)
- * \date 2015
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2015-2019 Screen LLC, Andrei Fadeev <andrei@webcontrol.ru>
  *
- * \defgroup HyScanCached HyScanCached - реализация системы кэширования данных в оперативной памяти
+ * This file is part of HyScanCache.
  *
- * HyScanCached реализация интерфейса \link HyScanCache \endlink основанная на хранении данных в
- * оперативной памяти. Объект HyScanCached создаётся при помощи функции #hyscan_cached_new. При
- * создании объекта указывается максимальный объём памяти, используемый для хранения объектов
- * в системе кэширования. Из-за особенностей реализации алгоритмов выделения памяти, объект
- * HyScanCached может использовать на 5-10% больше памяти, чем указано пользователем.
+ * HyScanCache is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * В случае исчерпания всего доступного объёма памяти или превышения лимита объектов, HyScanCached
- * удаляет объекты, доступ к которым осуществлялся давно, и использует освободившуюся память для
- * сохранения новых объектов.
+ * HyScanCache is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanCache имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanCache на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
 #ifndef __HYSCAN_CACHED_H__
@@ -51,17 +63,8 @@ struct _HyScanCachedClass
 };
 
 HYSCAN_API
-GType hyscan_cached_get_type( void );
+GType          hyscan_cached_get_type  (void);
 
-/**
- *
- * Функция создаёт новый объект \link HyScanCached \endlink.
- *
- * \param cache_size максимальный объём памяти, Мб.
- *
- * \return Указатель на объект \link HyScanCached \endlink.
- *
- */
 HYSCAN_API
 HyScanCached  *hyscan_cached_new       (guint32                cache_size);
 

@@ -1,20 +1,35 @@
-/**
- * \file hyscan-cache-server.h
+/* hyscan-cache-server.h
  *
- * \brief Заголовочный файл RPC сервера системы кэширования данных
- * \author Andrei Fadeev (andrei@webcontrol.ru)
- * \date 2015
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2015-2019 Screen LLC, Andrei Fadeev <andrei@webcontrol.ru>
  *
- * \defgroup HyScanCacheServer HyScanCacheServer - сервер системы кэширования данных
+ * This file is part of HyScanCache.
  *
- * Сервер кеша данных транслирует все вызовы интерфейса \link HyScanCache \endlink в
- * объект cache, указанный при создании сервера.
+ * HyScanCache is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Создать сервер системы кэширования можно с помощью функции #hyscan_cache_server_new.
+ * HyScanCache is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * После создания сервера его необходимо запустить функцией #hyscan_cache_server_start.
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanCache имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanCache на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
 #ifndef __HYSCAN_CACHE_SERVER_H__
@@ -50,33 +65,12 @@ struct _HyScanCacheServerClass
 HYSCAN_API
 GType                  hyscan_cache_server_get_type    (void);
 
-/**
- *
- * Функция создаёт новый объект \link HyScanCacheServer \endlink.
- *
- * \param uri адрес сервера;
- * \param cache объект в который транслируются запросы клиентов;
- * \param n_threads число потоков сервера;
- * \param n_clients максимальное число клиентов сервера.
- *
- * \return казатель на объект \link HyScanCacheServer \endlink.
- *
- */
 HYSCAN_API
 HyScanCacheServer     *hyscan_cache_server_new         (const gchar           *uri,
                                                         HyScanCache           *cache,
                                                         guint32                n_threads,
                                                         guint32                n_clients);
 
-/**
- *
- * Функция запускает сервер системы кэширования в работу.
- *
- * \param server указатель на объект \link HyScanCacheServer \endlink.
- *
- * \return TRUE - если сервер успешно запущен, FALSE - в случае ошибки.
- *
- */
 HYSCAN_API
 gboolean               hyscan_cache_server_start       (HyScanCacheServer     *server);
 

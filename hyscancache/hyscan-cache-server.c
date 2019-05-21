@@ -1,11 +1,50 @@
-/*
- * \file hyscan-cache-server.c
+/* hyscan-cache-server.c
  *
- * \brief Исходный файл RPC сервера системы кэширования данных
- * \author Andrei Fadeev (andrei@webcontrol.ru)
- * \date 2015
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2015-2019 Screen LLC, Andrei Fadeev <andrei@webcontrol.ru>
  *
+ * This file is part of HyScanCache.
+ *
+ * HyScanCache is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanCache is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanCache имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanCache на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-cache-server
+ * @Short_description: сервера системы кэширования данных
+ * @Title: HyScanCacheServer
+ *
+ * Сервер кеша данных транслирует все вызовы интерфейса #HyScanCache в объект
+ * cache, указанный при создании сервера.
+ *
+ * Создать сервер системы кэширования можно с помощью функции
+ * #hyscan_cache_server_new.
+ *
+ * После создания сервера его необходимо запустить функцией
+ * #hyscan_cache_server_start.
  */
 
 #include "hyscan-cache-server.h"
@@ -66,7 +105,8 @@ static gint    hyscan_cache_server_rpc_proc_get        (uRpcData              *u
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanCacheServer, hyscan_cache_server, G_TYPE_OBJECT);
 
-static void hyscan_cache_server_class_init( HyScanCacheServerClass *klass )
+static void
+hyscan_cache_server_class_init (HyScanCacheServerClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS( klass );
 
@@ -264,6 +304,17 @@ exit:
   return 0;
 }
 
+/**
+ * hyscan_cache_server_new:
+ * @uri: адрес сервера
+ * @cache: объект в который транслируются запросы клиентов
+ * @n_threads: число потоков сервера
+ * @n_clients: максимальное число клиентов сервера
+ *
+ * Функция создаёт новый объект #HyScanCacheServer.
+ *
+ * Returns: #HyScanCacheServer. Для удаления #g_object_unref.
+ */
 HyScanCacheServer *
 hyscan_cache_server_new (const gchar *uri,
                          HyScanCache *cache,
@@ -278,6 +329,14 @@ hyscan_cache_server_new (const gchar *uri,
                        NULL);
 }
 
+/**
+ * hyscan_cache_server_start:
+ * @server: указатель на #HyScanCacheServer
+ *
+ * Функция запускает сервер системы кэширования в работу.
+ *
+ * Returns: %TRUE если сервер запущен, иначе %FALSE.
+ */
 gboolean
 hyscan_cache_server_start (HyScanCacheServer *server)
 {
@@ -343,14 +402,10 @@ hyscan_cache_server_start (HyScanCacheServer *server)
   if (status != 0)
     goto fail;
 
-  g_message ("rpc uri %s", priv->uri);
-
   /* Запуск RPC сервера. */
   status = urpc_server_bind (priv->rpc);
   if (status != 0)
     goto fail;
-
-  g_message ("started");
 
   g_atomic_int_set (&priv->running, 1);
   return TRUE;
