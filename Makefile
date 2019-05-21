@@ -13,6 +13,8 @@ PREFIX ?= /usr
 
 all: release
 
+test: release-test
+
 release:
 	@-${MAKE_DIR} bin
 	@-${MAKE_DIR} build
@@ -23,6 +25,9 @@ release:
                        ..
 	@$(MAKE) -C build
 
+release-test: release
+	@$(MAKE) -C build test
+
 debug:
 	@-${MAKE_DIR} bin
 	@-${MAKE_DIR} build
@@ -32,6 +37,9 @@ debug:
                        -D HYSCAN_USE_SYS_LIBS=$(USE_SYS_LIBS) \
                        ..
 	@$(MAKE) -C build
+
+debug-test: debug
+	@$(MAKE) -C build test
 
 install: install-runtime
 
