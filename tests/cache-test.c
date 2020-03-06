@@ -281,7 +281,7 @@ main (int argc, char **argv)
   else
     {
       for (i = 0; i < n_threads + 2; i++)
-        cache[i] = g_object_ref (cached);
+        cache[i] = HYSCAN_CACHE (g_object_ref (cached));
     }
 
   /* Шаблоны тестирования. */
