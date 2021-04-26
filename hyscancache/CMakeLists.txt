@@ -18,14 +18,13 @@ configure_file (hyscancache.pc.in
 
 install (TARGETS ${HYSCAN_CACHE_LIBRARY}
          COMPONENT runtime
-         RUNTIME DESTINATION bin
-         LIBRARY DESTINATION lib
-         ARCHIVE DESTINATION lib
+         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 install (FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/hyscancache-${HYSCAN_MAJOR_VERSION}.pc"
          COMPONENT development
-         DESTINATION "lib/pkgconfig"
+         DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 install (FILES hyscan-cache.h
@@ -33,5 +32,5 @@ install (FILES hyscan-cache.h
                hyscan-cache-client.h
                hyscan-cache-server.h
          COMPONENT development
-         DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscancache"
+         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/hyscan-${HYSCAN_MAJOR_VERSION}/hyscancache"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

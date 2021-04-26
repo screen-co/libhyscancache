@@ -3,13 +3,14 @@ cmake_minimum_required (VERSION 3.0)
 
 project (libhyscancache)
 
-enable_testing()
+enable_testing ()
 
 set (HYSCAN_MAJOR_VERSION 5)
 set (HYSCAN_CACHE_VERSION 0)
 set (HYSCAN_CACHE_LIBRARY "hyscancache-${HYSCAN_MAJOR_VERSION}")
 
 include (FindPkgConfig)
+include (GNUInstallDirs)
 include (TestBigEndian)
 
 if (NOT CMAKE_BUILD_TYPE)
@@ -91,6 +92,10 @@ else ()
 endif ()
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscancache")
+
+if (NOT HYSCAN_INSTALLED)
+  set (CMAKE_INSTALL_RPATH "../${CMAKE_INSTALL_LIBDIR}")
+endif ()
 
 add_definitions (-DG_LOG_DOMAIN="HyScanCache")
 add_subdirectory (hyscancache)
